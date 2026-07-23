@@ -1,3 +1,8 @@
+---
+reviewed: No
+reviewed_by:
+---
+
 # Entity Schema — CLEF (Roberts et al. 2008)
 
 The NER label set for `mtsamples-ner-v1`. Taken as-is from the CLEF corpus entity

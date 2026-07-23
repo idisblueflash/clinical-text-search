@@ -1,3 +1,8 @@
+---
+reviewed: No
+reviewed_by:
+---
+
 # `resolve_run.py` — offline annotations → a run
 
 Script: `scripts/resolve_run.py`

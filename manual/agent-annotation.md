@@ -1,3 +1,8 @@
+---
+reviewed: No
+reviewed_by:
+---
+
 # Workflow: annotate with one Opus agent (no API)
 
 How to make a run using a **Claude Code agent (Opus)** as the annotator — the

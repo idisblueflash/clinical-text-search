@@ -1,3 +1,8 @@
+---
+reviewed: No
+reviewed_by:
+---
+
 # Dataset: mtsamples-ner-v1
 
 A frozen, stratified 80-note sample of MTSamples clinical notes, for a clinical

@@ -1,3 +1,8 @@
+---
+reviewed: No
+reviewed_by:
+---
+
 # CLAUDE.md — working rules for clinical-annotation-tools
 
 Rules for Claude Code (and humans) working in this repo. Read `README.md` for
@@ -75,6 +80,26 @@ for character offsets.
   update its `manual/*.md` page in the **same commit**, and re-copy the example
   output by actually running the command (examples must be real, not made up).
 - Add new commands to the table in `manual/README.md`.
+
+## Doc review status (frontmatter)
+
+Every `.md` starts with frontmatter:
+
+```
+---
+reviewed: No
+reviewed_by:
+---
+```
+
+- `reviewed: No` means **no human has verified this doc yet** (AI may have written
+  it). A person flips it to `Yes` after reading it, and puts their name in
+  `reviewed_by:`.
+- **Editing a doc's body resets `reviewed` to `No` and clears `reviewed_by:`.** A
+  review only vouches for the version that was read. So when you change any doc,
+  reset its frontmatter (unless a human is doing the review in the same change).
+- Find docs that still need a human read:
+  `grep -rl "reviewed: No" --include=*.md .`
 
 ## Commits
 

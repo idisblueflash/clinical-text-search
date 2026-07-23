@@ -1,3 +1,8 @@
+---
+reviewed: No
+reviewed_by:
+---
+
 # `openrouter_client.py` — model + text → reply
 
 Script: `scripts/openrouter_client.py`

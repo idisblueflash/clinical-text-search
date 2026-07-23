@@ -1,3 +1,8 @@
+---
+reviewed: No
+reviewed_by:
+---
+
 # `build_dataset.py` — build the frozen NER dataset
 
 Script: `scripts/build_dataset.py`

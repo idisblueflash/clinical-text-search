@@ -1,3 +1,8 @@
+---
+reviewed: No
+reviewed_by:
+---
+
 # Annotation Guideline — Clinical Narrative NER (CLEF scheme)
 
 How to mark named entities in a clinical note, for **every annotator — human or

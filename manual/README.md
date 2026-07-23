@@ -1,3 +1,8 @@
+---
+reviewed: No
+reviewed_by:
+---
+
 # manual/
 
 How-to pages for every command in this repo — one `.md` per command, with real

@@ -1,3 +1,8 @@
+---
+reviewed: No
+reviewed_by:
+---
+
 # Spec: `compare.py` — run-vs-run agreement
 
 **STATUS: SPEC — not built yet.** The plan for the evaluation tool. When it is

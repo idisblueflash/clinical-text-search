@@ -1,3 +1,8 @@
+---
+reviewed: No
+reviewed_by:
+---
+
 # `check_offsets.py` — check a run's offsets
 
 Script: `scripts/check_offsets.py`

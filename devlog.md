@@ -1,3 +1,8 @@
+---
+reviewed: No
+reviewed_by:
+---
+
 # devlog — clinical-annotation-tools
 
 Engineering decision log. Newest entries on top. Each decision records the

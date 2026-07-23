@@ -1,3 +1,8 @@
+---
+reviewed: No
+reviewed_by:
+---
+
 # clinical-annotation-tools
 
 Tools for a clinical NLP prototype. The end goal: type a question in plain

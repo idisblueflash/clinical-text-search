@@ -1,3 +1,8 @@
+---
+reviewed: No
+reviewed_by:
+---
+
 # `annotate.py` — run a model as the NER annotator
 
 Script: `scripts/annotate.py`
