@@ -1,0 +1,94 @@
+{
+  "dataset": "mtsamples-ner-v1",
+  "source_csv": "/Users/husongtao/Projects/semantic-annotation-of-clinical-text/data/mtsamples/mtsamples.csv",
+  "seed": 20260723,
+  "N": 80,
+  "clean_universe": 4922,
+  "cleaning": {
+    "min_chars": 100,
+    "drop_empty_and_nan": true,
+    "keyword_tail_stripped_notes": 3473
+  },
+  "axes": {
+    "specialty": {
+      "threshold": 0.02,
+      "buckets": {
+        "Gastroenterology": 220,
+        "Surgery": 1082,
+        "Other (rare specialties <2%)": 1061,
+        "General Medicine": 257,
+        "Radiology": 271,
+        "Consult - History and Phy.": 511,
+        "Orthopedic": 346,
+        "Discharge Summary": 108,
+        "Neurology": 223,
+        "Urology": 155,
+        "Cardiovascular / Pulmonary": 368,
+        "Obstetrics / Gynecology": 155,
+        "SOAP / Chart / Progress Notes": 165
+      },
+      "target": {
+        "Gastroenterology": 4,
+        "Surgery": 18,
+        "Other (rare specialties <2%)": 17,
+        "General Medicine": 4,
+        "Radiology": 4,
+        "Consult - History and Phy.": 8,
+        "Orthopedic": 6,
+        "Discharge Summary": 2,
+        "Neurology": 4,
+        "Urology": 2,
+        "Cardiovascular / Pulmonary": 6,
+        "Obstetrics / Gynecology": 2,
+        "SOAP / Chart / Progress Notes": 3
+      },
+      "achieved": {
+        "Urology": 2,
+        "Obstetrics / Gynecology": 2,
+        "Discharge Summary": 2,
+        "SOAP / Chart / Progress Notes": 3,
+        "Gastroenterology": 4,
+        "Neurology": 4,
+        "General Medicine": 4,
+        "Radiology": 4,
+        "Orthopedic": 6,
+        "Cardiovascular / Pulmonary": 6,
+        "Consult - History and Phy.": 8,
+        "Other (rare specialties <2%)": 17,
+        "Surgery": 18
+      }
+    },
+    "note_type": {
+      "method": "header-rules-v1",
+      "floor": 1,
+      "counts": {
+        "Diagnostic report": 642,
+        "Operative/Procedure": 1911,
+        "Other/Letter": 1001,
+        "Consult/H&P": 980,
+        "SOAP/Progress": 139,
+        "Discharge summary": 223,
+        "Pathology/Autopsy": 26
+      },
+      "target": {
+        "Diagnostic report": 10,
+        "Operative/Procedure": 31,
+        "Other/Letter": 16,
+        "Consult/H&P": 16,
+        "SOAP/Progress": 2,
+        "Discharge summary": 4,
+        "Pathology/Autopsy": 1
+      },
+      "achieved": {
+        "Pathology/Autopsy": 1,
+        "SOAP/Progress": 2,
+        "Discharge summary": 4,
+        "Diagnostic report": 10,
+        "Consult/H&P": 16,
+        "Other/Letter": 16,
+        "Operative/Procedure": 31
+      }
+    }
+  },
+  "method": "CLEF marginal-matching, guard both axis counters on every draw (Roberts 2008)"
+}
