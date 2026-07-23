@@ -1,0 +1,14 @@
+{"doc_id":"0023","entities":[
+{"text":"gastric bypass surgery","label":"Intervention"},
+{"text":"Medifast diet","label":"Intervention"},
+{"text":"morbid obesity","label":"Condition"},
+{"text":"gastric bypass surgery","label":"Intervention"},
+{"text":"pulmonary embolism","label":"Condition"},
+{"text":"anastomotic leak","label":"Condition"},
+{"text":"reoperation","label":"Intervention"},
+{"text":"stricture","label":"Condition"},
+{"text":"small bowel","label":"Locus"},
+{"text":"obstruction","label":"Condition"},
+{"text":"bleeding","label":"Condition"},
+{"text":"infection","label":"Condition"},
+{"text":"Medifast diet","label":"Intervention"}]}

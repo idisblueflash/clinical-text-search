@@ -1,0 +1,320 @@
+# devlog — clinical-annotation-tools
+
+Engineering decision log. Newest entries on top. Each decision records the
+*why*, not just the *what* (the code shows the what). "DEFERRED" marks things
+knowingly left for later so nothing silently falls through.
+
+Goal of the prototype: natural-language query → matching clinical narratives.
+First build is the upstream piece — a clean, frozen NER dataset + a Claude
+baseline — not the query/retrieval UI.
+
+================================================================================
+2026-07-23 — Opus silver-standard reference via PARALLEL agent batches
+================================================================================
+
+## Decision: strong-model (Opus) reference = a SILVER standard, not gold
+
+- Annotate the 80 with a strong model (Opus, via the Claude Code agent — NOT the
+  OpenRouter API) to get a reference other/cheaper models are compared against.
+- Naming matters: it is a SILVER standard (LLM reference), not gold (= human
+  consensus). Agreement-with-Opus ≠ correctness. Biggest caveat: correlated bias,
+  worst when candidate is SAME family (Opus->Sonnet reads high). Good for ranking,
+  dev velocity, disagreement-mining, and as a draft for humans to correct.
+  Hardening later: cross-family consensus + a small human-anchor set.
+- Offline path (no API): agent emits VERBATIM text+label per doc; resolve_run.py
+  computes offsets into the standard runs/<name>/ format. Built resolve_run.py +
+  check_offsets.py + manual/agent-annotation.md for this.
+- REASONING flips vs the OpenRouter extraction path: for a cheap candidate we run
+  reasoning OFF (thinking burns the token budget → empty content); for a quality
+  REFERENCE, thinking is fine (agent-native Opus) — quality over cost.
+
+## Decision: chunk the docs across PARALLEL agents (not one long agent)
+
+- Problem observed: a single agent doing all 80 ACCUMULATES context — every doc
+  read + file written stays in-window. Two failures: (1) cost/latency grows per
+  later doc; (2) CONTEXT DRIFT — doc 40 annotated in a noisier state than doc 1,
+  so quality is non-uniform. First single-agent run was stopped at 40/80 for this.
+- Fix: partition into ~10-doc batches, one COLD-START Opus agent per batch, run in
+  PARALLEL. 80 docs -> 8 agents (0001-0010 … 0071-0080), identical spec, only the
+  doc-id list differs. Bounded uniform context, parallel wall-clock, fault
+  isolation. Merge is free: all write the same raw/, resolve_run reads all of it.
+- Reconciled with the earlier "one annotator" guidance: consistency lives in the
+  GUIDELINE + schema + prompt + same model, NOT in it being one process. Cold-start
+  agents REMOVE the drift a single long run has, so chunked is typically MORE
+  consistent. Residual risk = ambiguous-case divergence between agents, mitigated
+  by explicit guideline conventions (and surfaces as signal to harden them). This
+  is planned uniform partitioning, not ad-hoc "second agent wings the remainder".
+- Chose option #2 (redo all 80 chunked; discarded the drift-contaminated 0001-0040)
+  over #1 (keep 40 + chunk rest) for pristine uniform provenance.
+
+## RESULT: opus-agent-r1 complete (80/80)
+
+- 8 parallel batches all finished; merged raw/ = 80/80 valid JSON, no missing/extra.
+- resolve_run.py: 80/80 resolved, 1 unlocated span (0020 'no evidence' Negation —
+  duplicate emission, correct conservative behavior). check_offsets.py: RESULT OK,
+  6215/6216 located & verified, 0 problems. run.json role=reference.
+- Label dist: Locus 1754, Condition 1629, Drug_or_device 758, Intervention 517,
+  Result 455, Investigation 449, Negation 307, Laterality 272, Sub_location 75.
+  Spans/doc: min 6 (0067 therapeutic-rec note), max 221 (0034 IME), mean 78.
+- The '0033 issue' an early agent saw was a transient mid-write read; 0033 clean.
+
+## Guideline gaps surfaced by the parallel cold-start agents (HARDEN guideline.md)
+
+The batches independently exposed where guideline.md / SCHEMA.md underspecify.
+These are the adjudication items for a v2 guideline (ranked by how many agents hit
+them / impact on span counts):
+
+1. **Laterality on a side-bearing Condition** — 5 agents independently. Schema
+   allows Laterality only on Locus/Intervention, so "right hemiparesis" / "left
+   radiculopathy" lose the side (folded into one Condition). Need an explicit rule
+   (allow Laterality→Condition? or split a Locus? or accept the loss). #1 priority.
+2. **Annotation EXHAUSTIVENESS of normal/negated exam findings + vitals** — biggest
+   driver of cross-batch span-count variance. Treatments seen: mark normal findings
+   as Result ("intact","2+","within normal limits"); mark as negated Condition;
+   or skip. Vitals as Investigation+Result vs skip. Guideline must rule on how
+   exhaustively to annotate, not just labels.
+3. **Drug dose as Result** — ~50/50 split. SCHEMA's own "80mg" example says Result,
+   but the definition (finding of an Investigation) says no; agents split. Fix the
+   schema example or add an explicit dose rule.
+4. **Condition + site splitting** — every agent called it the fuzziest boundary
+   (split "cervical stenosis"→Locus+Condition vs keep compound diagnoses whole).
+   Guideline has the facial-pain example but needs more worked cases.
+5. **Coordinated negation** ("denies A, B, C") — modifies points at ONE entity, so
+   only the first conjunct gets negated. Real scope limitation of the span format.
+6. **Uncertainty as Negation** — agents mapped "possible/probable/suspected/cannot
+   be assessed" to Negation (per "negated OR uncertain"). Consistent but worth an
+   explicit list.
+7. Minor: scopes/instruments as Drug_or_device vs omit; Sub_location vs fused Locus
+   ("lower back"); implanted grafts (homograft valve, Lap-Band) Locus vs device;
+   family-history conditions skipped (patient-only).
+
+DEFERRED: (a) revise guideline.md/SCHEMA.md per the above → would bump PROMPT_VER +
+a new reference round; (b) this is a SILVER standard — human-correct a subset to
+anchor it; (c) run a candidate (Sonnet full 80) + compare.py vs this reference.
+
+================================================================================
+2026-07-23 — OpenRouter annotator + uv env + annotation guideline
+================================================================================
+
+## Decision: annotate via OpenRouter (one API for all models)
+
+- **scripts/annotate.py** runs the CLEF-schema NER prompt over the frozen dataset
+  and writes runs/<model-slug>[-<tag>]/predictions.jsonl + run.json. Any model
+  (Claude/GPT/local) goes through the SAME endpoint → directly serves both goals:
+  self-consistency (repeat one model, --run-tag r1/r2/r3) and cross-model.
+- **scripts/openrouter_client.py** is the reusable (model, text) -> (response,
+  cost) primitive; annotate.py is built on it, and it runs standalone as a CLI.
+- **Library = `openrouter` PyPI SDK** (client.chat.send), per user direction. It
+  is a Speakeasy-generated SDK; cost comes back on res.usage.cost. Introspected
+  the installed package to code against the real API (send kwargs, ChatResult).
+
+## THE offset decision (correctness-critical)
+
+- LLMs cannot reliably emit character offsets. So the model returns VERBATIM
+  entity substrings + labels, and annotate.py locates each in the frozen doc to
+  produce [start,end). Unlocatable spans kept with start/end=null + located:false
+  and counted (n_unlocated_spans) — surfaced, never silently dropped. Verified
+  the resolver on doc 0001: real spans byte-match, fake span flagged, modifier
+  `modifies` maps to the target entity's index. Entities resolved before
+  modifiers so modifier pointers can resolve.
+- Consequence for the prompt: "copy text verbatim" is load-bearing, not style.
+
+## Env: uv
+
+- Adopted `uv` (uv.lock committed). Requires-python >=3.11. ONE runtime dep,
+  `openrouter`; the data pipeline (build_dataset.py) stays stdlib-only — the
+  stdlib-only rule now scopes to the pipeline, not the whole repo. CLAUDE.md and
+  pyproject comment updated to match (they previously said "stdlib only" repo-wide).
+
+## Guideline: guideline.md (humans + LLMs)
+
+- Wrote guideline.md from the CLEF paper (Roberts 2008, Tables 2-3 + §4.1): the
+  annotation *process* — a recipe (ordered passes to avoid omission), decision
+  cues (esp. Investigation-vs-Intervention), modifier attachment, boundary rules,
+  hard-case conventions (myocardial infarction = 1 Condition; groin dissection =
+  Locus+Intervention), a fully worked example, and where IAA says disagreement
+  clusters. It pairs with SCHEMA.md (labels) and is DISTILLED into annotate.py's
+  SYSTEM_PROMPT — change guideline => bump PROMPT_VER (comparability key).
+
+## First live run (Sonnet 5, 3 docs) + the reasoning-model trap
+
+- Ran anthropic/claude-sonnet-5 over 3 docs. FIRST ATTEMPT: all 3 failed to parse
+  ("no JSON object" / truncated JSON) yet still cost $0.13. Root cause: **Sonnet 5
+  defaults to extended thinking** — completion_tokens hit the 4000 cap entirely as
+  reasoning (reasoning_details full, content=None, finish_reason=length). Not a
+  prompt bug; the model never emitted an answer.
+- FIX: added `reasoning_effort` passthrough (openrouter_client.chat + annotate.py
+  `--reasoning`, DEFAULT 'none'). Re-ran: 3/3 parsed, 233 spans, $0.071, offsets
+  verify against docs, labels sensible (Condition/Result/Intervention/Locus/
+  Negation). 1/233 unlocated = a duplicate emission of "excision margin" (occurs
+  once in text; surplus mention gets no distinct offset) — correct conservative
+  behavior, not a bug. run.json now records reasoning_effort.
+- LESSON: any thinking model needs reasoning off (or a much larger token budget)
+  for extraction, or it returns empty content. Documented in manual/annotate.md.
+- Output dir: runs/anthropic-claude-sonnet-5/ (committed? — it's a real run, keep).
+
+DEFERRED (this entry): only 3 docs run (pilot); scale to 80 after eyeballing span
+quality. compare.py still unbuilt (specced).
+
+================================================================================
+2026-07-23 — self-consistency metric + compare.py spec  (spec only, not built)
+================================================================================
+
+## Decision: measure model self-consistency first, via compare.py
+
+Before trusting any accuracy number, measure whether a model is *stable* across
+repeated runs on the identical frozen bytes. Full design: `specs/compare.md`.
+
+- **It's self-consistency (test-retest), NOT IAA.** IAA is between *different*
+  annotators; same-model-repeated is intra-annotator / test-retest reliability.
+  Three distinct metrics, one tool:
+    * self-consistency   — model vs itself (r1/r2/r3) — *is it stable?*  ← now
+    * cross-model agree   — Claude vs GPT vs local     — *do they converge?*
+    * accuracy vs gold    — model vs human gold         — *is it right?*
+  All three are the same operation: span-level F1 between two predictions files.
+- **WHY first:** self-consistency is the RELIABILITY CEILING — a model can't
+  agree with gold (or another model) more than it agrees with itself. Without it,
+  a 0.75-vs-gold could be pure noise. It also splits error into random (unstable)
+  vs systematic (wrong the same way every time). Driver: some local models are
+  suspected inconsistent; this quantifies it instead of eyeballing.
+- **Metric = pairwise span-level F1, NOT kappa.** Span extraction has no fixed
+  item set and no countable negative class, so chance-corrected kappa is
+  ill-defined. F1 is symmetric for matched-span counting, so it IS the agreement
+  measure. K=3 runs → mean ± spread over the 3 pairs; per-entity-type breakdown
+  (Locus/Negation less stable than Drug_or_device); exact + relaxed match to
+  separate boundary disagreement from label flips. Modifiers scored in a separate
+  pass (their `modifies` index is run-local).
+- **THE TRAP (temperature).** The estimate is only meaningful if runs are
+  identical except sampling noise. Fix + record temperature/top_p/seed in every
+  run.json. At temp=0 most models are near-deterministic → self-F1 ≈ 1.0 measures
+  nothing; run at PRODUCTION temperature so measured noise = pipeline's real
+  noise. compare.py warns if these differ across runs.
+- **Near-free given existing design.** runs/<model>/ already supports multiple
+  runs (r1/r2/r3); compare.py is the deferred eval harness, now specced. N=80
+  docs = hundreds of spans, ample for a stability estimate.
+
+DEFERRED (unchanged): compare.py itself not yet built; Krippendorff α over BIO
+and accuracy-vs-gold both out of scope until there's a reason / a gold set.
+
+================================================================================
+2026-07-23 — mtsamples-ner-v1 dataset + stratified sampler  (commit 41eb9b9)
+================================================================================
+
+## Scope decisions
+
+- **CLI-driven, no UI yet.** UI work is deferred; we drive the pipeline from
+  scripts and (for the baseline) from Claude directly. Rationale: prove the
+  hard, domain-specific part (clean data + comparable NER) before spending
+  effort on interface.
+- **Claude is the baseline (PoC) NER model.** Its output must be saved in a
+  model-agnostic format so GPT / local models can be compared later against the
+  *identical* input bytes. Other models are OUT OF SCOPE for now — only the
+  format has to accommodate them.
+
+## Corpus: MTSamples (not MIMIC)
+
+- Used `mtsamples.csv` (4,999 de-identified transcribed notes) from the
+  companion repo `semantic-annotation-of-clinical-text`.
+- **MIMIC-IV demo deliberately excluded**: restricted license (must never be
+  committed) and it is mostly structured tables, not free-text narratives.
+
+## Cleaning (before sampling): universe 4,922 of 4,999
+
+- **Strip appended keyword tails (3,473 notes).** Most MTSamples notes have the
+  original `keywords` column glued onto the end of the narrative with no
+  separator — a lowercase comma-list. It is metadata, not clinical prose;
+  leaving it in would inflate and trivialize NER (models would "find" entities
+  in a tag dump). WHY it matters enough to fix carefully: two stripper bugs were
+  found and fixed —
+    1. tails ending in a trailing comma left an empty last token that halted the
+       strip (was missing ~2,374 notes);
+    2. a stub note (0068) whose narrative was basically empty + a keyword run
+       broken by a >6-word phrase (0053) slipped through — fixed by raising the
+       word cap to 10 (uppercase/period guards already exclude real prose) and
+       dropping the over-cautious 40%-of-note safety guard.
+  Residual keyword tails after fixes: ~103 corpus-wide (~2%), **0 in the 80.**
+- **Drop empty/`nan` and sub-100-char stubs** (keyword-dominated notes strip
+  down to near-nothing and are then removed by the min-length floor).
+
+## Stratification: two axes, CLEF marginal-matching
+
+Follows the project notes `stratified-sampling-balance-two-axes` /
+`-guard-both-counters` (Roberts 2008): set target counts per group first
+(marginals), draw at random, guard BOTH axis counters on every draw.
+
+- **Axis 1 = specialty (given), thresholded at ≥2%.** 12 specialties clear 2%
+  and are their own stratum; the 28 rarer ones pool into "Other" → 13 buckets,
+  none empty. WHY 2%: with 40 raw specialties and heavy imbalance (Surgery 22%
+  vs Hospice 0.1%), pure proportional allocation zeroes out ~13–19 specialties
+  at practical N. Thresholding mirrors CLEF's own rare-category filter
+  (`diagnosis-frequency-filter-five-percent`, which used 5%).
+- **Axis 2 = note-type (derived).** 7 types via section-header rules
+  (`header-rules-v1`), floor 1 so Pathology/Autopsy (0.5%) survives. WHY
+  note-type over the `split` column: note-type carries different information
+  from specialty (crosstab confirmed it cross-cuts, e.g. Radiology splits
+  report/other; Surgery is mostly operative but not entirely) and genuinely
+  exercises the two-axis method. `split` is carried in the manifest but is NOT
+  an axis.
+- **Draw order = rarity-first.** Shuffle (seeded) then stable-sort by global
+  rarity, so scarce combos claim shared-bucket slots before common ones exhaust
+  them. WHY: a shuffle-only single pass stalled at Pathology/Autopsy 0/1 (its
+  only note sits in the shared "Other" bucket, which filled first) — exactly the
+  endgame stall the guard-both-counters note predicts. Rarity-first fixed it;
+  all marginals now hit exactly, 80/80.
+- **N = 80**, seed = 20260723, reproducible.
+
+## Entity schema: CLEF (Roberts 2008), 6 entities + 3 modifiers
+
+- Entities: Condition, Intervention, Investigation, Result, Drug_or_device,
+  Locus. Modifiers: Negation, Laterality, Sub_location. See `SCHEMA.md`.
+- WHY include Negation from the start: negation is the central theme of the
+  companion notebook and of clinical meaning ("denies chest pain").
+
+## Format: frozen input vs. sibling runs
+
+- `docs/NNNN.txt` = cleaned narrative, the **char-offset ground truth**;
+  `manifest.jsonl` SHA-pins each note's bytes.
+- Model predictions live OUTSIDE the dataset dir: `runs/<model>/` (identical
+  shape per model). WHY: any later model annotates the same frozen bytes, so
+  agreement/F1 between two runs is mechanical. Dataset committed to git for
+  reproducibility.
+
+--------------------------------------------------------------------------------
+DEFERRED / NOT DONE / PASSED TO LATER
+--------------------------------------------------------------------------------
+
+Next up (immediate):
+- [ ] **Claude baseline annotation** → `runs/claude-opus-4-8/predictions.jsonl`
+      + `run.json`. Plan: 5-doc pilot first (eyeball span quality + format),
+      then scale to 80. Open question: entities-only vs entities+Negation for
+      the pilot (recommendation: entities + Negation).
+
+Known limitations to revisit:
+- [ ] **`note_type` is heuristic, not gold.** `header-rules-v1` was not
+      validated against hand labels; it is a sampling axis only. If it later
+      matters as data, validate or hand-correct.
+- [ ] **~103 residual keyword tails corpus-wide (~2%).** None in the current 80,
+      but the stripper is not perfect (tails with uppercase abbreviations like
+      "CT"/"GERD" break the all-lowercase rule). Acceptable for a baseline.
+- [ ] **Boundary rules in SCHEMA.md may need refinement** after seeing real
+      annotation disagreements in the pilot.
+
+Deliberately out of scope for this phase:
+- [ ] **CLEF relations** (has_finding, has_indication, …) — relation extraction
+      is a separate task; plan a `mtsamples-re-v1` after NER is stable.
+- [ ] **Pure random-with-retries draw** was NOT chosen; rarity-first was, to
+      guarantee the rarest marginal fills. If strict uniform randomness is later
+      required, swap `draw()` (documented tradeoff — slower, can fail to
+      converge on the scarcest cell).
+- [ ] **GPT / local model runs** — format supports them; runs themselves later.
+- [ ] **Evaluation harness** (`compare.py`: inter-run agreement / F1 against a
+      gold set) — not written yet.
+- [ ] **Gold standard + inter-annotator agreement** — later; the whole point of
+      the frozen format is to accumulate one over time.
+
+Downstream prototype stages (the query→narratives thread), not started:
+- [ ] Query understanding (NL → concepts, negation, normalization)
+- [ ] Concept normalization / UMLS codes (synonym matching)
+- [ ] Retrieval + result presentation (highlighted evidence)
+- [ ] UI (explicitly deferred — CLI-only for now)
+- [ ] MIMIC-IV demo data — unused so far.

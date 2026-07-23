@@ -1,0 +1,17 @@
+[project]
+name = "clinical-annotation-tools"
+version = "0.1.0"
+description = "Tooling for a clinical NLP prototype: frozen NER datasets + per-model annotation runs."
+requires-python = ">=3.11"
+# Keep deps minimal (see CLAUDE.md). `openrouter` is the one runtime dep — the
+# API transport for annotation. The data pipeline (build_dataset.py) stays
+# stdlib-only and must not grow deps.
+dependencies = [
+    "openrouter>=1.0.14",
+]
+
+[dependency-groups]
+dev = []
+
+# No [build-system]: this is an application/scripts repo, not an installable
+# package. uv treats it as a non-packaged (virtual) project and manages the venv.

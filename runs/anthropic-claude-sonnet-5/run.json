@@ -1,0 +1,18 @@
+{
+  "model": "anthropic/claude-sonnet-5",
+  "run_tag": null,
+  "date": "2026-07-23T02:37:34.163320+00:00",
+  "dataset": "mtsamples-ner-v1",
+  "schema_ver": "clef-v1",
+  "prompt_ver": "ner-v1",
+  "entities_only": false,
+  "temperature": 0.0,
+  "reasoning_effort": "none",
+  "max_tokens": 4000,
+  "n_docs": 3,
+  "n_failed_docs": 0,
+  "n_unlocated_spans": 1,
+  "total_cost_usd": 0.071002,
+  "elapsed_sec": 46.5,
+  "provider": "openrouter"
+}

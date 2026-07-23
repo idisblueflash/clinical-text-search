@@ -1,0 +1,19 @@
+{"doc_id":"0040","entities":[
+{"text":"TOTAL ABDOMINAL HYSTERECTOMY","label":"Intervention"},
+{"text":"denies any","label":"Negation","modifies":"symptomatology"},
+{"text":"symptomatology","label":"Condition"},
+{"text":"tenderness","label":"Condition"},
+{"text":"Foley catheter","label":"Drug_or_device"},
+{"text":"negative","label":"Negation","modifies":"rebound"},
+{"text":"rebound","label":"Condition"},
+{"text":"Without","label":"Negation","modifies":"Homans"},
+{"text":"Homans","label":"Condition"},
+{"text":"Without","label":"Negation","modifies":"tenderness"},
+{"text":"CVA","label":"Locus"},
+{"text":"tenderness","label":"Condition"},
+{"text":"Vagina","label":"Locus"},
+{"text":"spotting","label":"Condition"},
+{"text":"Wound","label":"Locus"},
+{"text":"dry","label":"Result"},
+{"text":"intact","label":"Result"}
+]}
