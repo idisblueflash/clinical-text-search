@@ -5,18 +5,18 @@ Script: `scripts/build_dataset.py`
 ## What it does
 
 Turns the raw MTSamples CSV into the frozen, versioned `mtsamples-ner-v1`
-dataset. Pipeline:
+dataset. The steps:
 
-1. **Load** MTSamples CSV.
-2. **Clean** — drop empty/`nan` and sub-100-char stubs; strip the appended
-   `keywords` tail most notes glue onto the narrative.
-3. **Derive note-type** from section headers (`header-rules-v1`).
+1. **Load** the MTSamples CSV.
+2. **Clean** — drop empty/`nan` notes and stubs under 100 characters; strip the
+   `keywords` tail most notes glue onto the end.
+3. **Find the note-type** from section headers (`header-rules-v1`).
 4. **Stratified draw** on two axes (specialty × note-type), CLEF marginal-matching,
-   guarding both axis counters on every draw (Roberts et al. 2008).
+   checking both axis counts on every pick (Roberts et al. 2008).
 5. **Write** `docs/*.txt` + `manifest.jsonl` + `sampling.json`.
 
-Deterministic (`SEED = 20260723`): re-running reproduces the identical dataset,
-byte for byte. Python **stdlib only** — no install step.
+Repeatable (`SEED = 20260723`): re-running makes the exact same dataset, byte for
+byte. Python standard library only — no install step.
 
 ## Usage
 
@@ -29,8 +29,8 @@ python3 scripts/build_dataset.py [--csv PATH] [--out DIR] [--report-only]
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `--csv PATH` | `…/semantic-annotation-of-clinical-text/data/mtsamples/mtsamples.csv` | Source MTSamples CSV (columns `id, text, label, split`). |
-| `--out DIR` | `datasets/mtsamples-ner-v1` | Dataset output directory. |
-| `--report-only` | off | Print the marginals and stop — **writes nothing.** Use to preview before committing to a rebuild. |
+| `--out DIR` | `datasets/mtsamples-ner-v1` | Where to write the dataset. |
+| `--report-only` | off | Print the counts and stop — **writes nothing.** Use it to preview before a rebuild. |
 
 ## Examples
 
@@ -69,11 +69,11 @@ keyword-tail stripped: 3473 notes
 selected: 80 / 80
 ```
 
-**Read it like this:** every axis row shows `target / got`. They must be equal on
-every row, and the last line must read `selected: 80 / 80`. If `got < target`
+**How to read it:** each axis row shows `target / got`. They must be equal on
+every row, and the last line must say `selected: 80 / 80`. If `got < target`
 anywhere (or `selected < 80`), the draw stalled — that is a bug; see Gotchas.
 
-### Actually build the dataset
+### Build the dataset
 
 ```
 $ python3 scripts/build_dataset.py
@@ -81,7 +81,7 @@ $ python3 scripts/build_dataset.py
 wrote 80 docs + manifest.jsonl + sampling.json to datasets/mtsamples-ner-v1
 ```
 
-This clears any prior `docs/*.txt` and rewrites the three outputs.
+This clears any old `docs/*.txt` and writes the three outputs again.
 
 ### Build from a different source or into a different dir
 
@@ -89,26 +89,26 @@ This clears any prior `docs/*.txt` and rewrites the three outputs.
 $ python3 scripts/build_dataset.py --csv /path/to/mtsamples.csv --out /tmp/ds-test
 ```
 
-Handy for a dry run into a throwaway dir without touching the committed dataset.
+Handy for a test run into a throwaway dir, without touching the committed dataset.
 
 ## Output files (in `--out`)
 
 | File | What it is |
 | --- | --- |
-| `docs/NNNN.txt` | One cleaned narrative per note. **The character-offset ground truth** every model annotates. |
+| `docs/NNNN.txt` | One cleaned note per file. **The ground truth for character offsets** every model annotates. |
 | `manifest.jsonl` | One row per note: `doc_id`, `source_id`, both axis values, `split`, `char_len`, `text_sha256`, … |
-| `sampling.json` | Provenance: seed, N, clean-universe size, per-axis marginals (`target` vs `achieved`). |
+| `sampling.json` | How it was drawn: seed, N, clean-universe size, per-axis `target` vs `achieved`. |
 
 ## Gotchas
 
-- **This overwrites the frozen dataset.** `docs/*.txt` is cleared and regenerated.
+- **This overwrites the frozen dataset.** `docs/*.txt` is cleared and rewritten.
   Never edit those files by hand — change the script and rebuild. See `CLAUDE.md`.
-- **A stall means don't ship it.** If `selected < 80` the sample is incomplete
-  (joint sparsity in a rare cell). The draw is rarity-first specifically to avoid
-  this; investigate rather than lowering `N`. Background in `devlog.md`.
-- **Determinism must hold.** Same CSV + same code ⇒ identical bytes. If a change
-  makes output vary run-to-run, that's a regression.
-- **Config lives at the top of the script** (`N`, `SEED`, `SPECIALTY_THRESHOLD`,
-  `NOTE_TYPE_FLOOR`, `MIN_CHARS`). Changing any of these means a **new dataset
-  version** (`-v2`), not a mutation of `v1`.
-- **`note_type` is heuristic**, not gold — a sampling axis only.
+- **A stall means don't use it.** If `selected < 80`, the sample is incomplete (a
+  rare cell ran out). The draw does rare cells first to avoid this; find out why
+  rather than lowering `N`. Background in `devlog.md`.
+- **It must stay repeatable.** Same CSV + same code ⇒ same bytes. If a change
+  makes the output vary between runs, that is a bug.
+- **Settings live at the top of the script** (`N`, `SEED`, `SPECIALTY_THRESHOLD`,
+  `NOTE_TYPE_FLOOR`, `MIN_CHARS`). Changing any of them means a **new dataset
+  version** (`-v2`), not a change to `v1`.
+- **`note_type` is a guess**, not gold — a sampling axis only.

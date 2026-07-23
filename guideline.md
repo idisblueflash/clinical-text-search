@@ -1,71 +1,71 @@
 # Annotation Guideline — Clinical Narrative NER (CLEF scheme)
 
-How to annotate a clinical narrative with named entities, for **every annotator —
-human or LLM** — so that different annotators produce comparable results. The
-label set and formal definitions live in
-[`datasets/mtsamples-ner-v1/SCHEMA.md`](datasets/mtsamples-ner-v1/SCHEMA.md);
-**this file is the *how*** — the decision process, conventions, and worked
-examples. Both are adopted from the CLEF corpus (Roberts et al. 2008); the paper
-card is `semantic-annotation-of-clinical-text/papers/raw/roberts-2008-clef-corpus.md`.
+How to mark named entities in a clinical note, for **every annotator — human or
+LLM** — so different annotators give matching results. The labels and their exact
+definitions are in
+[`datasets/mtsamples-ner-v1/SCHEMA.md`](datasets/mtsamples-ner-v1/SCHEMA.md).
+**This file is the *how*** — the steps, the judgment calls, and worked examples.
+Both come from the CLEF corpus (Roberts et al. 2008); the paper card is
+`semantic-annotation-of-clinical-text/papers/raw/roberts-2008-clef-corpus.md`.
 
-> The machine version of this guideline is the `SYSTEM_PROMPT` in
-> `scripts/annotate.py` — a distilled form of the rules below. If you change the
-> rules here, bump that script's `PROMPT_VER` (runs across the change aren't
-> comparable). Consistency is *the* determinant of gold-standard quality (CLEF §4.1).
+> The machine version of these rules is the `SYSTEM_PROMPT` in
+> `scripts/annotate.py`. If you change the rules here, bump that script's
+> `PROMPT_VER` — runs made before and after the change are not comparable.
+> Doing it the same way every time is what makes the data good (CLEF §4.1).
 
 ## 0. Scope
 
 - You mark **spans**: 6 entity types + 3 modifiers. That is the whole task for v1.
 - You do **not** mark relations (`has_finding`, `has_location`, …). Relations are
-  a separate task (a future `mtsamples-re-v1`). Where this guide mentions a
-  relation, it is only to help you *decide a span*, never to annotate the link.
-- Mark **every mention.** If the same real-world thing appears three times, mark
-  three spans (CLEF links co-references; we don't — each mention is its own span).
-- Annotate **planned / hypothetical** items too ("consider radiotherapy" → mark
-  *radiotherapy*). Presence in the text is what matters, not whether it happened.
+  a separate task (a future `mtsamples-re-v1`). When this guide names a relation,
+  it is only to help you *pick a span* — never to mark the link.
+- Mark **every mention.** If the same thing shows up three times, mark three
+  spans. (CLEF links repeated mentions; we don't — each mention is its own span.)
+- Mark **planned or hypothetical** items too ("consider radiotherapy" → mark
+  *radiotherapy*). What matters is that the note says it, not that it happened.
 
-## 1. The recipe — annotate in this order
+## 1. The recipe — mark in this order
 
-CLEF gives annotators a fixed recipe to *minimise errors of omission* (§4.1). Do
-the passes in order; don't free-associate:
+CLEF gives annotators a fixed order so they *miss less* (§4.1). Do the passes in
+order; don't jump around:
 
-1. **Read the whole note first.** Context decides labels (a "scan" that measures
+1. **Read the whole note first.** Context sets the label (a "scan" that measures
    vs. an action that treats).
 2. **Conditions** — every symptom, diagnosis, problem, injury.
-3. **Loci** — every anatomical location/structure/substance.
-4. **Investigations**, then their **Results** — tests and what they found.
-5. **Interventions** — actions that treat/change a condition.
+3. **Loci** — every body location, structure, or substance.
+4. **Investigations**, then their **Results** — tests, and what they found.
+5. **Interventions** — actions that treat or change a condition.
 6. **Drugs or devices**.
-7. **Modifiers** — for each, attach it to the entity it qualifies (Negation →
-   Condition; Laterality → Locus/Intervention; Sub_location → Locus).
-8. **Re-read** — check every Condition for negation/uncertainty you missed, and
-   confirm each span is copied **verbatim** and is the **maximal** span.
+7. **Modifiers** — attach each to the entity it belongs to (Negation → Condition;
+   Laterality → Locus/Intervention; Sub_location → Locus).
+8. **Read again** — check each Condition for a negation you missed, and confirm
+   each span is copied **word for word** and is the **longest** meaningful span.
 
 ## 2. Entity types — how to decide
 
-Full definitions in `SCHEMA.md`; here are the discriminating cues.
+Full definitions are in `SCHEMA.md`; here are the quick cues.
 
 - **Condition** — a symptom, diagnosis, complication, problem, function/process,
-  or injury. *Cue:* something the patient *has/experiences*. (*melanoma*,
+  or injury. *Cue:* something the patient *has or feels*. (*melanoma*,
   *facial pain*, *fracture dislocation*, *secondaries*.)
-- **Locus** — an anatomical location/structure, body substance, or physiologic
-  function; typically *where* a Condition is. (*right groin*, *lymph node*, *C2*.)
-- **Investigation vs. Intervention** — the single most error-prone call. Ask:
+- **Locus** — a body location, structure, substance, or physiologic function;
+  usually *where* a Condition is. (*right groin*, *lymph node*, *C2*.)
+- **Investigation vs. Intervention** — the call people get wrong most. Ask:
   **does the action *measure/study* the condition, or *change/treat* it?**
-  - *measures, has a finding* → **Investigation** (*biopsy*, *PET scan*, *CT scan*).
-  - *changes/treats, usually no finding* → **Intervention** (*groin dissection*,
+  - measures, has a finding → **Investigation** (*biopsy*, *PET scan*, *CT scan*).
+  - changes or treats, usually no finding → **Intervention** (*groin dissection*,
     *radiotherapy*, *ORIF*).
-- **Result** — the numeric or qualitative **finding of an Investigation**, and
-  *not itself a Condition*. (*normal*, *80mg*, *12 x 5.2 x 4.6 cm*.) If the finding
-  is a disease, that's a **Condition**, not a Result (a biopsy *finding* of
+- **Result** — the number or word that is the **finding of an Investigation**, and
+  is *not itself a Condition*. (*normal*, *80mg*, *12 x 5.2 x 4.6 cm*.) If the
+  finding is a disease, it is a **Condition**, not a Result (a biopsy that *finds*
   *melanoma* → Condition).
 - **Drug_or_device** — usually a drug; sometimes a device (sutures, drains).
   (*co-codamol*, *DTIC*, *Hemovac drain*.)
 
-## 3. Modifiers — mark the signal, attach to one entity
+## 3. Modifiers — mark the signal word, attach to one entity
 
-A modifier is its **own span** (the signal word), pointing at the single entity
-it qualifies. In a run's output, `modifies` is the index (`i`) of that entity.
+A modifier is its **own span** (the signal word). It points at the one entity it
+belongs to. In a run's output, `modifies` is that entity's index (`i`).
 
 | Modifier | Attaches to | Signal examples |
 | --- | --- | --- |
@@ -73,46 +73,45 @@ it qualifies. In a run's output, `modifies` is the index (`i`) of that entity.
 | `Laterality` | a **Locus** or **Intervention** | *right*, *left*, *bilateral* |
 | `Sub_location` | a **Locus** | *extra*, *upper*, *lower*, *proximal* |
 
-- Mark the **signal**, not the whole phrase: in *"no evidence of secondaries"*,
-  the Negation span is *no evidence*; *secondaries* is the Condition it modifies.
-- A single Laterality/Sub_location can sit before the Locus it modifies
+- Mark the **signal only**, not the whole phrase: in *"no evidence of
+  secondaries"*, the Negation span is *no evidence*; *secondaries* is the
+  Condition it belongs to.
+- A Laterality/Sub_location can sit right before the Locus it belongs to
   (*right* → *second toe*).
 
-## 4. Span & boundary rules
+## 4. Span and boundary rules
 
-- **Verbatim.** A span is an exact substring of the note — same words, same case,
-  no paraphrase, no added/trimmed words. (Downstream, offsets are computed by
-  *finding your span text in the frozen note*; a paraphrase can't be located and
-  is lost.)
-- **Maximal meaningful span.** Mark the largest clinically coherent unit:
+- **Word for word.** A span is an exact substring of the note — same words, same
+  case, nothing added or trimmed. (Later, offsets are found by *searching for your
+  span text in the frozen note*. A reworded span can't be found, so it is lost.)
+- **Longest meaningful span.** Mark the biggest unit that makes clinical sense:
   *fracture dislocation* as one Condition, not *fracture* + *dislocation*.
-- **No overlaps between entity types.** One character belongs to at most one
-  entity span. A modifier may sit *adjacent* to its entity but doesn't overlap it.
-- **Measurements** attached to an Investigation are **Result** (*"12 x 5 cm"*).
+- **No overlap between entity types.** One character belongs to at most one entity
+  span. A modifier can sit *next to* its entity but must not overlap it.
+- **Measurements** that belong to an Investigation are **Result** (*"12 x 5 cm"*).
 
-## 5. Hard cases & conventions
+## 5. Hard cases and conventions
 
-These are the recurring judgment calls; resolve them the same way every time.
+These are the calls that come up again and again. Make them the same way each time.
 
-- **"myocardial infarction"** → a **single Condition**. Do *not* split into
-  Condition + Locus. (CLEF flags this exact case; we always resolve to one span.)
+- **"myocardial infarction"** → **one Condition**. Do *not* split it into
+  Condition + Locus. (CLEF flags this exact case; we always make it one span.)
 - **"groin dissection"** → **two spans**: *groin* (Locus) + *dissection*
-  (Intervention). A procedure named by its site is site-Locus + action-Entity,
+  (Intervention). A procedure named by its site is site-Locus + action-entity,
   not one blob. Same for *"lymph node biopsy"* → *lymph node* (Locus) + *biopsy*
   (Investigation), and *"facial pain"* → *facial* (Locus) + *pain* (Condition).
-- **Negation scope.** The Negation attaches to the Condition it denies, even when
-  words intervene (*"no evidence of extra pelvic secondaries"* → Negation *no
-  evidence* modifies Condition *secondaries*).
-- **A test result that is a disease is a Condition, not a Result** (see §2 Result).
-- **Coordinated lists** ("pain and swelling") → mark each conjunct as its own
-  Condition span.
-- **Don't annotate section headers or template scaffolding** (e.g. a bare
-  "DIAGNOSIS:" label) — annotate the clinical content, not the form.
+- **Negation reach.** The Negation belongs to the Condition it denies, even with
+  words in between (*"no evidence of extra pelvic secondaries"* → Negation *no
+  evidence* belongs to Condition *secondaries*).
+- **A finding that is a disease is a Condition, not a Result** (see §2 Result).
+- **Lists** ("pain and swelling") → mark each item as its own Condition span.
+- **Don't mark section headers or template text** (like a bare "DIAGNOSIS:"
+  label) — mark the clinical content, not the form.
 
-## 6. Fully worked example
+## 6. Full worked example
 
-The canonical CLEF passage (Roberts 2008, Tables 2–3), annotated. Relations are
-shown *only for understanding* — they are **not** part of v1 output.
+The standard CLEF passage (Roberts 2008, Tables 2–3), annotated. Relations are
+shown *only to help you understand* — they are **not** part of v1 output.
 
 > This patient has had a **lymph node** *biopsy* which shows **melanoma** in his
 > *right* **groin**. It is clearly **secondaries** from the **melanoma** on his
@@ -122,7 +121,7 @@ shown *only for understanding* — they are **not** part of v1 output.
 > side wall**. There was *no evidence* of *extra* **pelvic secondaries**. Her
 > **facial** **pain** was initially relieved by **co-codamol**.
 
-| Span (verbatim) | Label | modifies |
+| Span (word for word) | Label | modifies |
 | --- | --- | --- |
 | lymph node | Locus | |
 | biopsy | Investigation | |
@@ -149,37 +148,36 @@ shown *only for understanding* — they are **not** part of v1 output.
 | pain | Condition | |
 | co-codamol | Drug_or_device | |
 
-*(Implied relations, for context only, not annotated: biopsy `has_finding`
-melanoma; melanoma `has_location` groin; PET scan `has_finding` normal;
-dissection `has_target` groin; co-codamol `has_indication` pain.)*
+*(Relations, for context only, not marked: biopsy `has_finding` melanoma;
+melanoma `has_location` groin; PET scan `has_finding` normal; dissection
+`has_target` groin; co-codamol `has_indication` pain.)*
 
 ## 7. Notes for LLM annotators
 
-- **Copy span text verbatim** (§4). This is non-negotiable: offsets are recovered
-  by string-matching your text against the frozen note.
-- **Output JSON only**, no prose, no code fence — the exact shape in `SCHEMA.md`
-  / the `annotate.py` prompt: `{"entities": [{"text","label","modifies?"}]}`, with
-  `modifies` = the verbatim text of the modified entity.
-- **Don't hallucinate spans**, and don't "normalize" text (no expanding
-  abbreviations, no fixing typos) — mark what is written.
-- **Determinism matters for evaluation.** Run at the temperature the pipeline
-  will actually use; self-consistency across repeats is measured explicitly
-  (`specs/compare.md`).
+- **Copy span text word for word** (§4). This is a hard rule: offsets are found by
+  searching for your text in the frozen note.
+- **Output JSON only** — no prose, no code fence. Use the exact shape in
+  `SCHEMA.md` / the `annotate.py` prompt: `{"entities": [{"text","label",
+  "modifies?"}]}`, where `modifies` = the exact text of the entity you point at.
+- **Don't invent spans**, and don't "clean up" the text (no expanding short forms,
+  no fixing typos) — mark what is written.
+- **Stay steady for scoring.** Run at the temperature the pipeline will really
+  use. We measure how consistent a model is across repeats (`specs/compare.md`).
 
-## 8. Where disagreement clusters — spend care accordingly
+## 8. Where annotators disagree — slow down there
 
-CLEF's inter-annotator agreement on narratives (strict IAA, Table 6) tells you
-which labels are hard, so you know where to slow down:
+CLEF's agreement scores on narratives (strict IAA, Table 6) show which labels are
+hard, so you know where to take care:
 
 - **Easy / high agreement:** Laterality (95%), Drug_or_device (84%), Condition
-  (81%), Locus (78%). These rarely cause disputes.
-- **Hard / low agreement — annotate deliberately:** Sub_location (63%),
-  Intervention (64%), Negation (67%), Result (69%). Most disagreement here is the
-  Investigation-vs-Intervention call (§2) and negation scope (§5).
+  (81%), Locus (78%). These rarely cause a dispute.
+- **Hard / low agreement — go slow:** Sub_location (63%), Intervention (64%),
+  Negation (67%), Result (69%). Most of the trouble is the
+  Investigation-vs-Intervention call (§2) and how far a negation reaches (§5).
 
-## Source & versioning
+## Source and versioning
 
 CLEF scheme — Roberts et al. (2008), "Semantic Annotation of Clinical Text: The
-CLEF Corpus", Tables 2–3 and §4.1. This guideline pairs with `SCHEMA.md` (labels)
-and is distilled into `annotate.py`'s prompt (`PROMPT_VER`). Revise both together
-after seeing real disagreements in the pilot.
+CLEF Corpus", Tables 2–3 and §4.1. This guideline goes with `SCHEMA.md` (the
+labels) and is distilled into `annotate.py`'s prompt (`PROMPT_VER`). Update both
+together after you see real disagreements in a pilot.

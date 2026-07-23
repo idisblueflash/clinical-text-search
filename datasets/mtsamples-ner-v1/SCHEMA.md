@@ -1,12 +1,12 @@
 # Entity Schema — CLEF (Roberts et al. 2008)
 
-The NER label set for `mtsamples-ner-v1`. Adopted verbatim from the CLEF
-corpus entity scheme — Roberts et al. (2008), "Semantic Annotation of
-Clinical Text: The CLEF Corpus", Table 2 (entities) and Figure 1 (modifiers).
-Source card: `semantic-annotation-of-clinical-text/papers/roberts-2008-clef-corpus.md`.
+The NER label set for `mtsamples-ner-v1`. Taken as-is from the CLEF corpus entity
+scheme — Roberts et al. (2008), "Semantic Annotation of Clinical Text: The CLEF
+Corpus", Table 2 (entities) and Figure 1 (modifiers). Source card:
+`semantic-annotation-of-clinical-text/papers/roberts-2008-clef-corpus.md`.
 
-Every model (Claude baseline now; GPT / local later) labels with **this exact
-set** so runs are comparable.
+Every model (Claude first; GPT / local later) uses **this exact set**, so runs are
+comparable.
 
 ## Entity types (6) — span-level
 
@@ -21,9 +21,9 @@ set** so runs are comparable.
 
 ## Modifiers (3) — span-level, attached to an entity
 
-CLEF marks these as separate spans (Figure 1 ovals) that modify an entity.
-For this NER baseline we mark them as spans with a `modifies` pointer to the
-entity they qualify (by that entity's span index).
+CLEF marks these as separate spans (Figure 1 ovals) that modify an entity. For
+this NER baseline we mark them as spans with a `modifies` pointer to the entity
+they qualify (by that entity's span index).
 
 | Label | Modifies | Definition | Example |
 | --- | --- | --- | --- |
@@ -35,21 +35,19 @@ entity they qualify (by that entity's span index).
 
 CLEF **relations** (Table 3: `has_target`, `has_finding`, `has_indication`,
 `has_location`, and the `Modifies` links as typed relations) are **relation
-extraction**, a separate task that presupposes the entities above are already
-found. Not labeled in v1. Revisit as `mtsamples-re-v1` once the NER baseline
-is stable.
+extraction** — a separate task that needs the entities above to be found first.
+Not labeled in v1. Revisit as `mtsamples-re-v1` once the NER baseline is stable.
 
-## Boundary rules (keep annotators/models consistent)
+## Boundary rules (keep annotators and models consistent)
 
-- Mark the **maximal** clinically meaningful span (e.g. *fracture dislocation*,
-  not *fracture* + *dislocation* separately) unless a modifier splits it.
-- A word can carry a modifier **and** be part of an entity's context, but a
-  single character offset belongs to exactly one entity span (no overlaps
-  between two entity types). Modifiers may sit adjacent to the entity they
-  point at.
-- "myocardial infarction" is a single `Condition` (CLEF flags this exact case
-  as a judgment call; we resolve it to one Condition, not Condition + Locus).
-- Numeric measurements attached to an Investigation are `Result`.
+- Mark the **longest** clinically meaningful span (e.g. *fracture dislocation*,
+  not *fracture* + *dislocation* apart) unless a modifier splits it.
+- A word can carry a modifier **and** sit in an entity's context, but one
+  character offset belongs to exactly one entity span (no overlap between two
+  entity types). Modifiers may sit next to the entity they point at.
+- "myocardial infarction" is a single `Condition` (CLEF flags this exact case as a
+  judgment call; we make it one Condition, not Condition + Locus).
+- Numeric measurements that belong to an Investigation are `Result`.
 
 ## Output format (per document, in a run's `predictions.jsonl`)
 
@@ -63,5 +61,5 @@ is stable.
 ```
 
 `start`/`end` are character offsets into `docs/<doc_id>.txt` (half-open,
-`[start, end)`). `i` is the span index within the doc; `modifies` (modifiers
-only) points at the `i` of the entity it qualifies.
+`[start, end)`). `i` is the span index within the doc; `modifies` (modifiers only)
+points at the `i` of the entity it qualifies.

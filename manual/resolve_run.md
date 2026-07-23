@@ -4,16 +4,15 @@ Script: `scripts/resolve_run.py`
 
 ## What it does
 
-Turns **offline annotations** — produced by a Claude Code agent or a human, not
-the OpenRouter API — into the standard `runs/<name>/` format. The annotator emits
-verbatim entity `text`+`label` per doc (never character offsets); this script
-locates each substring in the frozen doc to produce `[start, end)`, reusing the
-**same** `resolve()` logic as `annotate.py`. So an agent/human run and an API run
-are byte-identical in shape and equally consumable by `check_offsets.py` and
-`compare.py`.
+Turns **offline annotations** — made by a Claude Code agent or a human, not the
+OpenRouter API — into the standard `runs/<name>/` format. The annotator gives
+verbatim entity `text`+`label` per doc (never offsets). This script finds each
+substring in the frozen doc to get `[start, end)`, using the **same** `resolve()`
+code as `annotate.py`. So an agent/human run and an API run have the exact same
+shape and both work with `check_offsets.py` and `compare.py`.
 
-This is the resolve step of the [agent annotation workflow](agent-annotation.md);
-it works the same for human-produced annotations.
+This is the resolve step of the [agent annotation workflow](agent-annotation.md).
+It works the same way for human-made annotations.
 
 ## Input / output
 
@@ -24,9 +23,9 @@ it works the same for human-produced annotations.
 <out>/run.json             model, annotator, role, dataset, schema_ver, counts
 ```
 
-Each `raw/NNNN.json` must use **verbatim** span text (exact substring of the
-note) — a paraphrase can't be located and becomes an unlocated span. `modifies`
-(modifiers only) is the verbatim text of the entity it qualifies.
+Each `raw/NNNN.json` must use **verbatim** span text (an exact substring of the
+note) — a reworded span can't be found and becomes an unlocated span. `modifies`
+(modifiers only) is the exact text of the entity it belongs to.
 
 ## Usage
 
@@ -37,11 +36,11 @@ uv run python scripts/resolve_run.py OUT --model ID [options]
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `OUT` | *(required)* | Run dir; expects `OUT/raw/`, writes `predictions.jsonl` + `run.json`. |
-| `--model ID` | *(required)* | Model/annotator id recorded in `run.json`, e.g. `claude-opus-4-8`. |
-| `--annotator STR` | = `--model` | Human-readable annotator description. |
+| `--model ID` | *(required)* | Model/annotator id saved in `run.json`, e.g. `claude-opus-4-8`. |
+| `--annotator STR` | = `--model` | A readable description of the annotator. |
 | `--run-tag TAG` | — | e.g. `r1`. |
 | `--role STR` | `candidate` | `reference` (silver standard) or `candidate`. |
-| `--dataset DIR` | `datasets/mtsamples-ner-v1` | Frozen dataset to resolve against. |
+| `--dataset DIR` | `datasets/mtsamples-ner-v1` | The frozen dataset to resolve against. |
 | `--entities-only` | off | Ignore the 3 modifiers. |
 
 ## Example
@@ -53,7 +52,7 @@ $ uv run python scripts/resolve_run.py runs/opus-agent-r1 \
 resolved 80/80 docs → runs/opus-agent-r1  (1 unlocated spans)
 ```
 
-If any doc is missing or malformed, it says so and exits non-zero:
+If a doc is missing or malformed, it says so and exits non-zero:
 
 ```
 resolved 78/80 docs → runs/opus-agent-r1  (11 unlocated spans)
@@ -70,7 +69,7 @@ resolved 78/80 docs → runs/opus-agent-r1  (11 unlocated spans)
 
 ## Notes
 
-- **Missing docs aren't fatal to the data already written** — `predictions.jsonl`
-  is written for whatever resolved; the non-zero exit + `MISSING` list tells you
-  what to backfill (continue the same agent, then re-run). See the workflow page.
-- Validate with `check_offsets.py` after resolving, before comparing.
+- **Missing docs don't lose the data already resolved** — `predictions.jsonl` is
+  written for whatever resolved. The non-zero exit + `MISSING` list tells you what
+  to fill in (continue the same agent, then run it again). See the workflow page.
+- Check the run with `check_offsets.py` after resolving, before you compare.
