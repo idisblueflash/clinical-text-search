@@ -33,6 +33,7 @@ guessing a command from the code.
 | `scripts/annotate.py` | [annotate.md](annotate.md) | Run any OpenRouter model as the NER annotator over a frozen dataset → `runs/<model>/` |
 | `scripts/resolve_run.py` | [resolve_run.md](resolve_run.md) | Turn offline (agent/human) annotations into a run — finds offsets, writes `runs/<name>/` |
 | `scripts/check_offsets.py` | [check_offsets.md](check_offsets.md) | Check a run's offsets against the frozen dataset (`doc[start:end] == text`) |
+| `scripts/compare.py` | [compare.md](compare.md) | Score span-level F1 between two (or more) runs — self-consistency, run-vs-run agreement, or accuracy vs gold |
 
 ## Workflows
 

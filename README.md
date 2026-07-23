@@ -26,6 +26,7 @@ scripts/
   annotate.py            run any OpenRouter model as the NER annotator -> runs/<model>/
   resolve_run.py         turn offline (agent/human) annotations into a run
   check_offsets.py       check a run's offsets against the frozen text
+  compare.py             span-level F1 between two+ runs (agreement / self-consistency)
 guideline.md             how to annotate the notes (humans + LLMs) — the CLEF method
 manual/                  how-to page per command (real commands + real output)
 specs/                   plans for commands not built yet (e.g. compare.py)
@@ -143,12 +144,17 @@ See [`manual/check_offsets.md`](manual/check_offsets.md).
 
 - **Done**: `mtsamples-ner-v1` built and frozen; the sampler is repeatable.
   OpenRouter annotator + helper client; the Opus-agent annotation path; the
-  offset validator; the `guideline.md`.
+  offset validator; the `compare.py` agreement harness; the `guideline.md`.
 - **Runs so far**: `runs/opus-agent-r1/` — an 80-note Opus reference set (a
   *silver* standard, made by 8 parallel agents), all offsets checked;
-  `runs/anthropic-claude-sonnet-5/` — a 3-note Sonnet pilot.
-- **Next**: run a full candidate model (e.g. Sonnet on all 80), then build
-  `compare.py` to score self-consistency (same model ×3) and run-vs-run agreement.
-- **Deferred** (tracked in `devlog.md`): the `compare.py` harness (planned in
-  [`specs/compare.md`](specs/compare.md)); a human gold set; CLEF relations; the
+  `runs/anthropic-claude-sonnet-5/` — a full 80-note Sonnet run (temp 0, reasoning
+  off, `--max-tokens 12000`), offsets checked.
+- **First comparison**: Sonnet vs the Opus silver — entity F1 **0.535 exact /
+  0.735 relaxed**. The gap is mostly boundary disagreement (Condition &
+  Drug_or_device ≈ 0.82 relaxed); `Result` and the modifiers are weakest. It is
+  *agreement*, not accuracy — Sonnet is Opus's own family, so it reads high.
+- **Next**: self-consistency (Sonnet ×3 at production temperature) to pin the
+  reliability ceiling; a cross-family candidate (e.g. a GPT model) to cut the
+  same-family bias; then human-anchor a subset so the numbers read as accuracy.
+- **Deferred** (tracked in `devlog.md`): a human gold set; CLEF relations; the
   query→retrieval stages; the UI.
