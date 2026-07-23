@@ -5,10 +5,22 @@ reviewed_by:
 
 # Workflow: annotate with one Opus agent (no API)
 
-How to make a run using a **Claude Code agent (Opus)** as the annotator — the
-harness's own Opus, not the OpenRouter API. This is the offline path: the agent
-gives verbatim `text`+`label` per doc, and `resolve_run.py` finds the offsets and
-writes the same `runs/<name>/` format everything else reads.
+How to make a run using a **Claude Code agent** as the annotator — the harness's
+own model, not the OpenRouter API. This is the offline path: the agent gives
+verbatim `text`+`label` per doc, and `resolve_run.py` finds the offsets and writes
+the same `runs/<name>/` format everything else reads.
+
+> **Any harness model, not just Opus.** Pass `model: opus` for a reference, or
+> `model: sonnet` for a cheaper candidate — the spec is identical, only the model
+> differs. `runs/opus-agent-r1/` (reference) and `runs/sonnet-agent-r1/`
+> (candidate) were both made this way.
+>
+> **Prefer this path on BOTH sides of a comparison.** The annotation path changes
+> the result *more than the model does*: an agent reads the full `guideline.md` +
+> `SCHEMA.md`, while `annotate.py` sends a distilled prompt over the API. Two
+> Sonnets, one per path, agreed only 0.50 (exact F1) — *less* than agent-Sonnet vs
+> agent-Opus (0.74). So to score a candidate against the Opus reference fairly,
+> annotate the candidate through this same agent path. See `devlog.md`.
 
 ## When to use this vs. `annotate.py`
 

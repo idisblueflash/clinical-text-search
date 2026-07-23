@@ -1,0 +1,78 @@
+{
+  "dataset": "mtsamples-ner-v1",
+  "match": "exact",
+  "runs": [
+    "opus-agent-r1",
+    "sonnet-agent-r1"
+  ],
+  "pairwise": {
+    "opus-agent-r1|sonnet-agent-r1": {
+      "micro_f1": 0.7361993563825399,
+      "macro_f1": 0.7399722963194985,
+      "precision": 0.802049622437972,
+      "recall": 0.6803416196431294,
+      "docs_scored": 80,
+      "gap": [],
+      "spans": {
+        "a": 5562,
+        "b": 6557,
+        "matched": 4461
+      },
+      "by_type": {
+        "Condition": 0.8073987081620669,
+        "Intervention": 0.568685376661743,
+        "Investigation": 0.7592407592407593,
+        "Result": 0.5531135531135531,
+        "Drug_or_device": 0.8100799016594961,
+        "Locus": 0.7474580928826601
+      },
+      "modifiers_micro_f1": 0.5102175346077785,
+      "modifiers_by_type": {
+        "Negation": 0.45925925925925926,
+        "Laterality": 0.6540880503144654,
+        "Sub_location": 0.23300970873786409
+      }
+    }
+  },
+  "aggregate_f1": {
+    "mean": 0.7361993563825399,
+    "min": 0.7361993563825399,
+    "max": 0.7361993563825399,
+    "stdev": 0.0
+  },
+  "aggregate_kind": "agreement",
+  "by_type": {
+    "Condition": {
+      "mean_f1": 0.8073987081620669
+    },
+    "Intervention": {
+      "mean_f1": 0.568685376661743
+    },
+    "Investigation": {
+      "mean_f1": 0.7592407592407593
+    },
+    "Result": {
+      "mean_f1": 0.5531135531135531
+    },
+    "Drug_or_device": {
+      "mean_f1": 0.8100799016594961
+    },
+    "Locus": {
+      "mean_f1": 0.7474580928826601
+    }
+  },
+  "modifiers": {
+    "mean_f1": 0.5102175346077785,
+    "by_type": {
+      "Negation": {
+        "mean_f1": 0.45925925925925926
+      },
+      "Laterality": {
+        "mean_f1": 0.6540880503144654
+      },
+      "Sub_location": {
+        "mean_f1": 0.23300970873786409
+      }
+    }
+  }
+}
