@@ -1,6 +1,6 @@
 ---
-reviewed: No
-reviewed_by:
+reviewed: Yes
+reviewed_by: Flash Hu
 ---
 
 # CLAUDE.md — working rules for clinical-annotation-tools

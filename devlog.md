@@ -14,6 +14,152 @@ First build is the upstream piece — a clean, frozen NER dataset + a Claude
 baseline — not the query/retrieval UI.
 
 ================================================================================
+2026-07-23 — gemma4 on the Mini via Ollama; FIRST self-consistency number
+================================================================================
+
+## Decision: put gemma4:e2b on the Mini via Ollama (not LM Studio)
+
+- gemma4:e2b is an OLLAMA-NATIVE model (arch "gemma4", multimodal vision+audio+
+  thinking, 5.1B / E2B effective, needs Ollama 0.20+). LM Studio (llama.cpp/MLX)
+  can't load Ollama's blob, so "same model in LM Studio" isn't a copy — chose to
+  run Ollama on the Mini instead (exact same weights; plugs into --provider ollama).
+- Wired --provider ollama into annotate.py (3rd backend: openrouter/lmstudio/ollama),
+  same SYSTEM_PROMPT + offset resolver. num_predict <- max_tokens; --no-think sends
+  Ollama's think:false. run.json records provider+base_url.
+
+## Getting the model onto the Mini — internet pull FAILED, LAN rsync WON
+
+- Mini had no Homebrew/Ollama. Installed headless: curl the macOS app zip (176MB),
+  unzip, run the bundled CLI at Ollama.app/Contents/Resources/ollama (xattr -dr
+  com.apple.quarantine first so Gatekeeper doesn't block it). `ollama serve` detached.
+- `ollama pull gemma4:e2b` (7.2GB) DIED at 8%: ~2 MB/s then a DNS failure on Ollama's
+  Cloudflare R2 CDN ("no such host") — same flaky-Mini-internet as the earlier HF/LM
+  Studio downloads. Retrying would likely fail again.
+- FIX: skip the internet. This Mac already had gemma4:e2b, so rsync ~/.ollama/models/
+  Mac -> Mini over the LAN (fast, no CDN/DNS). Gotcha: macOS ships openrsync/old rsync
+  — `--info=progress2` is unsupported and printed usage instead of running; plain
+  `rsync -a` worked. gemma4:e2b now native on the Mini. Reached via SSH tunnel on LOCAL
+  port 11435 (11434 is THIS Mac's own Ollama) -> --base-url http://localhost:11435.
+
+## RESULT: first self-consistency number (gemma4 x3 @ temp 0.7)
+
+- Ran gemma4 THREE times, --run-tag r1/r2/r3, at temp 0.7 (NOT 0 — specs/compare.md:
+  temp 0 => self-F1 ~ 1.0, measures nothing; 0.7 shows real sampling noise). ~13
+  min/run on the Mini (E2B is fast, unlike the 7B). Offsets OK all three.
+- SELF-CONSISTENCY = 0.732 mean pairwise micro-F1 [min 0.710, max 0.755, sd 0.023].
+  So gemma4 agrees with ITSELF only ~0.73 across repeats — ~27% of its output is
+  random run-to-run noise at 0.7. (Failed-doc counts also varied: 11/16/7 — same
+  instability. compare.py scored the shared non-failed docs, gaps reported.)
+- gemma4-r1 vs Opus silver = 0.163 exact (prec 0.094 / rec 0.583). gemma4 total spans
+  = 764 (vs Opus ~5562) — heavy UNDER-annotation.
+- THE POINT of measuring self-consistency FIRST: it's the reliability ceiling. gemma4's
+  silver score 0.163 << its own ceiling 0.732, so its poor result is SYSTEMATIC (it's
+  consistently different from Opus: under-annotates, different boundaries), NOT just
+  noise. Without the ceiling you couldn't split "bad-because-unstable" from
+  "bad-because-consistently-different"; it's the latter. Modifier by-type here is
+  low-count/unreliable (Negation/Sub_location show 1.0 = "both emit none" agreeing).
+
+## Local-candidate landscape vs the Opus silver (all via the annotate.py path)
+
+- qwen2.5-7b (Mini/LM Studio, temp 0): 0.190 exact. But 14/80 docs FAILED (dense-note
+  timeouts even at 300s on the 16GB M4) and 269 unlocated (heavy rewording); 99 min.
+- gemma4:e2b (Mini/Ollama): 0.163, self-consistency 0.732, fast, no timeouts.
+- qwen3-1.7b: 0.075. gemma-3-1b / qwen3-0.6b: unusable (0 valid spans — echo the
+  prompt's placeholders, runaway JSON).
+- TAKEAWAY: 5-7B local models cluster at 0.16-0.19 vs silver — far below frontier
+  (agent-Sonnet 0.736). A capable local candidate needs a bigger model than the 16GB
+  Mini comfortably runs. gemma4 (E2B) is the best speed/quality/stability tradeoff of
+  the local set and runs fine on the Mini.
+
+DEFERRED: (a) self-consistency for the FRONTIER models (Opus/Sonnet x3) to get their
+ceilings too — needed to read the silver F1s as "how close" vs "how noisy"; (b) a
+mid/large local model if a real local candidate is wanted; (c) qwen2.5-7b timeouts —
+raise --timeout or accept dense-note gaps.
+
+================================================================================
+2026-07-23 — Ollama client (local models on THIS Mac)
+================================================================================
+
+- scripts/ollama_client.py: same small (model,text)->reply helper as
+  lmstudio_client.py, but for a local Ollama server (on this Mac, port 11434 — no
+  tunnel, unlike LM Studio on the Mini). STDLIB ONLY (urllib) over Ollama's native
+  REST (/api/tags, /api/chat) — the same API the `ollama` python pkg wraps; chose
+  plain HTTP to add no dep and keep the proxy-bypass in our own hands (the Clash
+  proxy at 127.0.0.1:7897 would hijack localhost — same trap as LM Studio).
+- Two Ollama specifics: (1) num_predict defaults to just 128 tokens -> truncates a
+  long NER reply; the CLI exposes --num-predict (use -1 for no cap). (2) think: a
+  thinking model (gemma4:e2b is one) burns budget reasoning; --no-think sends
+  think:false (only sent when asked, so non-thinking models don't error).
+- Available locally: gemma4:e2b (5.1B, Q4_K_M, thinking) and qwen3.5:0.8b. Verified
+  --list + a gemma prompt return sensibly. "gemma" per the user = gemma4:e2b.
+- DEFERRED: wire ollama into annotate.py as a 3rd --provider (like lmstudio) for a
+  gemma4:e2b candidate run -> compare vs silver. gemma4 is 5B, so a plausible
+  candidate (unlike the 1B floor models); worth a run if wanted.
+
+================================================================================
+2026-07-23 — LM Studio client (local models on the Mac Mini)
+================================================================================
+
+## Decision: a stdlib client for LOCAL models via LM Studio (no API cost)
+
+- Driver: run tiny/local models (qwen3-0.6b-mlx, qwen/qwen3-1.7b, …) hosted in
+  LM Studio on the Mac Mini as cheap candidates — the "local model" path the
+  dataset was always meant to accept. LM Studio speaks the OpenAI-compatible REST
+  API, so scripts/lmstudio_client.py is the same small (model,text)->reply helper
+  as openrouter_client.py but points at a local server.
+- STDLIB ONLY (urllib) — no new dep. LM Studio's endpoints are plain JSON over
+  HTTP (GET /v1/models, POST /v1/chat/completions). Keeps the stdlib-only spirit;
+  the annotation dep stays just `openrouter`. CLI: --list, or --model + prompt.
+
+## Two gotchas that cost debugging time (documented in the manual)
+
+1. **A local HTTP proxy 502s localhost.** This Mac has HTTP_PROXY=127.0.0.1:7897
+   (Clash-style). Python urllib routes EVEN localhost through it -> 502 Bad Gateway,
+   while curl bypasses it for local hosts (so curl worked but the client didn't).
+   FIX: the client builds its own opener with an empty ProxyHandler, so it always
+   connects directly. This is the correct behavior for a local endpoint.
+2. **LM Studio binds to the Mini's localhost, not the LAN.** Reach it with an SSH
+   tunnel: `ssh -f -N -L 1234:localhost:1234 macmini` (Mini IP is 10.62.1.190 if
+   ever set to serve on-network, but tunnel is preferred — no LM Studio change, not
+   LAN-exposed). A 502 right after opening the tunnel = not ready yet; wait/poll.
+
+## Notes
+
+- qwen3 is a REASONING model: emits a hidden <think> block that eats max_tokens.
+  Append `/no_think` to the prompt (Qwen convention) or raise --max-tokens. Client
+  falls back to reasoning_content if content is empty (same trap as the OpenRouter
+  Sonnet path). Verified: --list (8 models) + prompts to 0.6b/1.7b return sensibly.
+- google/gemma-3-1b (user's other example) is NOT downloaded on the Mini yet — only
+  the Qwen models are loaded; load it in the LM Studio app to make it appear.
+
+## DONE: wired lmstudio into annotate.py (--provider) + ran a local NER candidate
+
+- annotate.py gained `--provider {openrouter,lmstudio}` + `--base-url` + `--no-think`.
+  Both providers share the SAME SYSTEM_PROMPT and verbatim-offset resolver, so a
+  local run lands in the identical runs/<model>/ format. run.json records provider +
+  base_url. No fork; one command, two backends.
+- qwen3-0.6b-mlx is UNUSABLE for this task: with the standard prompt it returned the
+  literal word "ENTITIES" as every label (0 valid spans after schema filter) and broke
+  JSON on long docs. Did NOT run it on all 80 — pilot (3 docs) was conclusive; would
+  have been an empty run. (User chose to switch to 1.7b instead.)
+- qwen/qwen3-1.7b RAN on all 80 (no_think, max_tokens 8000): $0.00, 12 min, 3 parse
+  failures (0009/0027/0028, the densest), 606 spans / 511 located / 95 UNLOCATED.
+  Offsets check OK. vs Opus silver: 0.075 exact / 0.131 relaxed F1. vs API-Sonnet
+  (SAME path): 0.084 exact — so it's model weakness, not a path artifact.
+- WHY so low: qwen UNDER-annotates massively — 606 spans vs Opus ~5562 / Sonnet ~6500
+  (finds ~4% of what they find), and rewords instead of copying verbatim (95/606
+  unlocated). Relaxed recall on qwen's own spans is 0.75 (when it fires, the span is in
+  a sensible place), but it fires rarely. A 1.7B local model is far below frontier for
+  clinical NER — a rough FLOOR. The harness itself worked end-to-end on a free, local
+  model, which was the point.
+
+DEFERRED: (a) a mid-size local model (7-8B) would be the real cheap-candidate test —
+1.7B is too small; (b) load gemma-3-1b if a same-size cross-arch point is wanted (also
+expected weak); (c) tiny models might do better with a simplified, one-shot prompt, but
+that = a new PROMPT_VER (breaks comparability with the frontier runs) — only if the goal
+is "best local extraction", not "compare on the shared prompt".
+
+================================================================================
 2026-07-23 — Sonnet via the AGENT path; the annotation PATH dominates the model
 ================================================================================
 

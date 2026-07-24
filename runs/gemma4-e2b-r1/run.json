@@ -1,0 +1,20 @@
+{
+  "model": "gemma4:e2b",
+  "run_tag": "r1",
+  "date": "2026-07-23T14:29:14.742864+00:00",
+  "dataset": "mtsamples-ner-v1",
+  "schema_ver": "clef-v1",
+  "prompt_ver": "ner-v1",
+  "entities_only": false,
+  "temperature": 0.7,
+  "reasoning_effort": null,
+  "no_think": true,
+  "max_tokens": 8000,
+  "n_docs": 80,
+  "n_failed_docs": 11,
+  "n_unlocated_spans": 27,
+  "total_cost_usd": 0.0,
+  "elapsed_sec": 686.3,
+  "provider": "ollama",
+  "base_url": "http://localhost:11435"
+}

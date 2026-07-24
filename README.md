@@ -23,6 +23,8 @@ notes, source papers, and the sampling/schema method this tooling follows.
 scripts/
   build_dataset.py       clean + stratified-sample MTSamples into a frozen dataset
   openrouter_client.py   small helper: (model, text) -> reply (+ cost) via OpenRouter
+  lmstudio_client.py     small helper: list & prompt local LM Studio models (no cost)
+  ollama_client.py       small helper: list & prompt local Ollama models (no cost)
   annotate.py            run any OpenRouter model as the NER annotator -> runs/<model>/
   resolve_run.py         turn offline (agent/human) annotations into a run
   check_offsets.py       check a run's offsets against the frozen text
@@ -143,24 +145,30 @@ See [`manual/check_offsets.md`](manual/check_offsets.md).
 ## Status
 
 - **Done**: `mtsamples-ner-v1` built and frozen; the sampler is repeatable.
-  OpenRouter annotator + helper client; the Opus-agent annotation path; the
-  offset validator; the `compare.py` agreement harness; the `guideline.md`.
-- **Runs so far**: `runs/opus-agent-r1/` — an 80-note Opus reference (a *silver*
-  standard, 8 parallel agents); `runs/sonnet-agent-r1/` — an 80-note Sonnet
-  candidate via the same **agent** path (8 parallel agents, no API charge);
-  `runs/anthropic-claude-sonnet-5/` — an 80-note Sonnet run via the **API**
-  (`annotate.py`, temp 0, `--max-tokens 12000`). All offsets checked.
-- **Comparisons** (exact / relaxed entity F1 vs the Opus silver):
-  - **Agent-Sonnet 0.736 / 0.811** — same path as the reference.
-  - **API-Sonnet 0.535 / 0.735** — via the distilled API prompt.
-  - **The annotation *path* matters more than the model.** Two Sonnets through
-    different paths agree only **0.502** exact — *less* than agent-Sonnet agrees
-    with agent-Opus. So compare runs made the **same way**; the 0.535 API number
-    was confounded by prompt, not model. Still *agreement*, not accuracy (same
-    family). Weakest cells across both paths: `Result`, `Intervention`.
-- **Next**: harden the guideline (the agents re-flagged vitals/device/dose scope +
-  Laterality-on-Condition — the source of the remaining disagreement); a
-  cross-family candidate (e.g. a GPT model) to cut same-family bias;
-  self-consistency ×3 at production temperature; then human-anchor a subset.
+  Annotators for **3 backends** — OpenRouter (paid API), LM Studio, and Ollama
+  (both local, no cost) — behind one `annotate.py --provider`; helper clients for
+  each; the Opus-agent annotation path; the offset validator; the `compare.py`
+  agreement harness; the `guideline.md`.
+- **Runs so far** (all offsets checked): `opus-agent-r1` — 80-note Opus reference
+  (*silver* standard, 8 agents); `sonnet-agent-r1` — Sonnet via the same **agent**
+  path; `anthropic-claude-sonnet-5` — Sonnet via the **API**; and local runs
+  `qwen2-5-7b-instruct` (LM Studio/Mini), `qwen-qwen3-1-7b` (LM Studio/Mini),
+  `gemma4-e2b-r1/r2/r3` (Ollama/Mini, temp 0.7 for self-consistency).
+- **Comparisons** (exact entity F1 vs the Opus silver):
+  - **Agent-Sonnet 0.736** / API-Sonnet 0.535. **The annotation *path* matters
+    more than the model** — two Sonnets through *different* paths agree only 0.502,
+    *less* than agent-Sonnet vs agent-Opus. So compare runs made the **same way**;
+    the 0.535 was confounded by prompt, not model. It's *agreement*, not accuracy
+    (same family). Weakest cells: `Result`, `Intervention`.
+  - **Local models (annotate.py path):** qwen2.5-7b **0.190**, gemma4:e2b **0.163**,
+    qwen3-1.7b 0.075; gemma-3-1b / qwen3-0.6b unusable (0 valid spans). 5–7B local
+    models cluster far below frontier — they under-annotate heavily.
+  - **First self-consistency:** gemma4:e2b ×3 at temp 0.7 → **0.732** mean pairwise
+    F1 (sd 0.023). This is the *reliability ceiling*: gemma4's 0.163 vs silver sits
+    far below its own 0.732, so its low score is **systematic** (consistently
+    different from Opus), not noise.
+- **Next**: self-consistency for the frontier models (Opus/Sonnet ×3) to get their
+  ceilings; harden the guideline (vitals/device/dose scope + Laterality-on-Condition);
+  a cross-family candidate to cut same-family bias; then human-anchor a subset.
 - **Deferred** (tracked in `devlog.md`): a human gold set; CLEF relations; the
   query→retrieval stages; the UI.
