@@ -10,8 +10,13 @@ Script: `scripts/annotate.py`
 ## What it does
 
 Runs a CLEF-schema NER prompt (see `datasets/mtsamples-ner-v1/SCHEMA.md`) over
-every note in a frozen dataset, using **any OpenRouter model**, and writes a run
-in a model-neutral format:
+every note in a frozen dataset and writes a run in a model-neutral format. Two
+backends, **same prompt and same offset logic**, chosen with `--provider`:
+
+- `openrouter` (default) — any OpenRouter model (paid API).
+- `lmstudio` — a **local** model served by LM Studio (e.g. on the Mac Mini). No
+  API key, no cost. Open the SSH tunnel first (see
+  [`lmstudio_client.md`](lmstudio_client.md)).
 
 ```
 runs/<model-slug>[-<tag>]/predictions.jsonl   one line per doc: {doc_id, entities:[…]}
@@ -32,8 +37,17 @@ get `[start, end)`. If a span's text can't be found, it is kept with `start`/`en
 
 ## Auth
 
+For `--provider openrouter`:
+
 ```
 export OPENROUTER_API_KEY=sk-or-...
+```
+
+For `--provider lmstudio` no key is needed — just make the local server reachable
+(SSH tunnel to the Mini):
+
+```
+ssh -f -N -L 1234:localhost:1234 macmini
 ```
 
 ## Usage
@@ -44,7 +58,10 @@ uv run python scripts/annotate.py --model MODEL [options]
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `--model` | *(required)* | OpenRouter model id, e.g. `anthropic/claude-sonnet-5`. |
+| `--model` | *(required)* | Model id. OpenRouter: `anthropic/claude-sonnet-5`. LM Studio: an id from `lmstudio_client.py --list`, e.g. `qwen/qwen3-1.7b`. |
+| `--provider` | `openrouter` | `openrouter` (paid API) or `lmstudio` (local, no cost). |
+| `--base-url URL` | `http://localhost:1234/v1` | LM Studio server (or `LMSTUDIO_BASE_URL`). Only for `--provider lmstudio`. |
+| `--no-think` | off | Append `/no_think` to each prompt — the LM Studio equivalent of `--reasoning none` for Qwen models. |
 | `--dataset DIR` | `datasets/mtsamples-ner-v1` | Dataset to annotate. |
 | `--out DIR` | `runs/<model-slug>[-<tag>]` | Where to write the run. |
 | `--run-tag TAG` | — | Suffix for repeat runs, e.g. `r1`/`r2`/`r3` (self-consistency). |
@@ -95,6 +112,47 @@ uv run python scripts/annotate.py --model MODEL --run-tag r3
 # → runs/<slug>-r1, -r2, -r3, then compare (specs/compare.md)
 ```
 
+### Local model via LM Studio (no cost)
+
+Open the tunnel first, confirm the model is loaded, then run with
+`--provider lmstudio`:
+
+```
+$ ssh -f -N -L 1234:localhost:1234 macmini
+$ uv run python scripts/lmstudio_client.py --list          # confirm the id is there
+$ uv run python scripts/annotate.py --provider lmstudio --model qwen/qwen3-1.7b \
+    --no-think --max-tokens 8000
+  [1/80] 0001  11 spans  $0.0000
+  …
+  [80/80] 0080  13 spans  $0.0000  (1 unlocated)
+wrote 80 predictions + run.json to runs/qwen-qwen3-1-7b  (cost $0.0000, 3 failed, 95 unlocated spans)
+```
+
+*(Real run. `qwen/qwen3-1.7b` under-annotates heavily — 606 spans vs a frontier
+model's ~6,000 — and scored 0.075 exact-F1 vs the Opus silver. It works, but a
+small local model is a weak annotator; see `devlog.md`. `qwen3-0.6b-mlx` is weaker
+still — unusable here.)*
+
+### Local model via Ollama (no cost)
+
+Ollama on this Mac needs no tunnel; a remote Ollama (e.g. on the Mini) uses one
+plus `--base-url`. `--num-predict` is set from `--max-tokens`; `--no-think`
+disables a thinking model's reasoning pass. This example is a self-consistency
+run (temp 0.7, `--run-tag`) against the Mini's Ollama:
+
+```
+$ uv run python scripts/annotate.py --provider ollama --base-url http://localhost:11435 \
+    --model gemma4:e2b --no-think --temperature 0.7 --max-tokens 8000 --timeout 300 --run-tag r1
+  [1/80] 0001  25 spans  $0.0000  (2 unlocated)
+  …
+wrote 80 predictions + run.json to runs/gemma4-e2b-r1  (cost $0.0000, 11 failed, 27 unlocated spans)
+```
+
+*(Real run. Repeat with `--run-tag r2`/`r3`, then `compare.py` the three for
+self-consistency — gemma4 scored 0.732 mean pairwise F1. Use a **non-zero
+temperature** for self-consistency, or the score is a trivial ~1.0; see
+[`compare.md`](compare.md).)*
+
 ## Output format
 
 `predictions.jsonl`, one line per doc:
@@ -128,5 +186,17 @@ only) points at the `i` of the entity it belongs to. A failed doc is
   `reasoning_details`) — then every doc fails to parse. The first live Sonnet-5 run
   failed this way until `--reasoning none`. Only raise it if you want to study
   thinking on purpose (and then set `--max-tokens` well above the thinking budget).
-- **Cost is real money.** Always pilot with `--limit` first; the run prints a
-  running dollar total and the final cost.
+- **Cost is real money** (OpenRouter). Always pilot with `--limit` first; the run
+  prints a running dollar total and the final cost. LM Studio runs cost `$0.0000`.
+- **Local (`lmstudio`): use `--no-think` for Qwen models.** Qwen3 emits a hidden
+  `<think>` block that eats `--max-tokens`; `--no-think` skips it, the same reason
+  OpenRouter reasoning models need `--reasoning none`.
+- **Tiny models can't do this task.** `qwen3-0.6b-mlx` returned the literal word
+  `"ENTITIES"` as every label (0 valid spans) and broke JSON on long notes. Use a
+  bigger local model (`qwen/qwen3-1.7b` works). Pilot with `--limit 3` and read the
+  raw output before scaling.
+- **Provider = part of the path; compare like with like.** An `lmstudio`/
+  `openrouter` run uses this distilled prompt, *not* the agent path
+  ([`agent-annotation.md`](agent-annotation.md)). The annotation path moves the
+  score more than the model does (see `devlog.md`), so score same-path runs
+  together, or note the path when you don't.

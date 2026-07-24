@@ -168,6 +168,16 @@ def main():
                     help="reasoning-model thinking budget; default 'none' — thinking wastes the "
                          "token budget on verbatim extraction and can truncate output to empty.")
     ap.add_argument("--timeout", type=int, default=120)
+    ap.add_argument("--provider", choices=["openrouter", "lmstudio", "ollama"], default="openrouter",
+                    help="openrouter = paid API (default); lmstudio / ollama = a LOCAL server "
+                         "(no cost). For lmstudio on the Mini, open the SSH tunnel first "
+                         "(see manual/lmstudio_client.md).")
+    ap.add_argument("--base-url", help="local server base URL — lmstudio (LMSTUDIO_BASE_URL or "
+                                       "http://localhost:1234/v1) / ollama (OLLAMA_HOST or "
+                                       "http://localhost:11434).")
+    ap.add_argument("--no-think", action="store_true",
+                    help="disable a reasoning model's thinking pass — the local equivalent of "
+                         "--reasoning none (lmstudio: appends '/no_think'; ollama: sends think=false).")
     ap.add_argument("--entities-only", action="store_true", help="skip the 3 modifiers")
     ap.add_argument("--dry-run", action="store_true", help="print the prompt for the first doc; no API call")
     args = ap.parse_args()
@@ -206,19 +216,62 @@ def main():
         out_name = "runs/" + model_slug(args.model) + (f"-{args.run_tag}" if args.run_tag else "")
     out = pathlib.Path(out_name); out.mkdir(parents=True, exist_ok=True)
 
-    try:
-        client = get_client()          # fail fast on a missing key, before any writes
-    except RuntimeError as e:
-        _die(str(e))
+    # Build a uniform caller: call(text) -> (raw_reply, cost_usd). Both providers
+    # share the SAME SYSTEM_PROMPT and the same verbatim-offset resolver below, so a
+    # run is comparable regardless of backend (see specs/compare.md). Fail fast on a
+    # missing key / unreachable server / absent model, before any writes.
+    run_base = None                    # local server URL recorded in run.json (lmstudio/ollama)
+    if args.provider == "lmstudio":
+        from lmstudio_client import chat as lm_chat, list_models, base_url
+        try:
+            avail = list_models(base=args.base_url, timeout=args.timeout)
+        except Exception as e:
+            _die(str(e))
+        if args.model not in avail:
+            _die(f"model {args.model!r} not loaded in LM Studio. Available: {', '.join(avail)}. "
+                 f"Load it in the LM Studio app first.")
+        run_base = base_url(args.base_url)
+
+        def call(text):
+            prompt = text + ("\n\n/no_think" if args.no_think else "")
+            raw = lm_chat(args.model, prompt, system=SYSTEM_PROMPT,
+                          temperature=args.temperature, max_tokens=args.max_tokens,
+                          base=args.base_url, timeout=args.timeout)
+            return raw, 0.0
+    elif args.provider == "ollama":
+        from ollama_client import chat as ol_chat, list_models as ol_list, base_url as ol_base
+        try:
+            avail = ol_list(base=args.base_url, timeout=args.timeout)
+        except Exception as e:
+            _die(str(e))
+        if args.model not in avail:
+            _die(f"model {args.model!r} not in Ollama. Available: {', '.join(avail)}. "
+                 f"Pull it first: ollama pull {args.model}")
+        run_base = ol_base(args.base_url)
+
+        def call(text):
+            raw = ol_chat(args.model, text, system=SYSTEM_PROMPT,
+                          temperature=args.temperature, num_predict=args.max_tokens,
+                          think=False if args.no_think else None,
+                          base=args.base_url, timeout=args.timeout)
+            return raw, 0.0
+    else:
+        try:
+            client = get_client()      # fail fast on a missing key, before any writes
+        except RuntimeError as e:
+            _die(str(e))
+
+        def call(text):
+            return chat(args.model, text, system=SYSTEM_PROMPT,
+                        temperature=args.temperature, max_tokens=args.max_tokens,
+                        reasoning_effort=args.reasoning,
+                        timeout_ms=args.timeout * 1000, client=client)
 
     total_cost, results, n_failed, n_unlocated_total = 0.0, [], 0, 0
     t0 = time.time()
     for n, did in enumerate(doc_ids, 1):
         try:
-            raw, cost = chat(args.model, docs[did], system=SYSTEM_PROMPT,
-                             temperature=args.temperature, max_tokens=args.max_tokens,
-                             reasoning_effort=args.reasoning,
-                             timeout_ms=args.timeout * 1000, client=client)
+            raw, cost = call(docs[did])
         except Exception as e:
             n_failed += 1
             print(f"  [{n}/{len(doc_ids)}] {did}  API FAIL: {e}", file=sys.stderr)
@@ -249,14 +302,16 @@ def main():
         "prompt_ver": PROMPT_VER,
         "entities_only": args.entities_only,
         "temperature": args.temperature,       # KEY for self-consistency (see specs/compare.md)
-        "reasoning_effort": args.reasoning,
+        "reasoning_effort": args.reasoning if args.provider == "openrouter" else None,
+        "no_think": args.no_think if args.provider in ("lmstudio", "ollama") else None,
         "max_tokens": args.max_tokens,
         "n_docs": len(doc_ids),
         "n_failed_docs": n_failed,
         "n_unlocated_spans": n_unlocated_total,
         "total_cost_usd": round(total_cost, 6),
         "elapsed_sec": round(time.time() - t0, 1),
-        "provider": "openrouter",
+        "provider": args.provider,
+        "base_url": run_base,
     }
     json.dump(run_meta, open(out / "run.json", "w"), indent=2)
     print(f"\nwrote {len(results)} predictions + run.json to {out}"

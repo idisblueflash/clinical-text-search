@@ -30,6 +30,8 @@ guessing a command from the code.
 | --- | --- | --- |
 | `scripts/build_dataset.py` | [build_dataset.md](build_dataset.md) | Clean + stratified-sample MTSamples into the frozen `mtsamples-ner-v1` dataset |
 | `scripts/openrouter_client.py` | [openrouter_client.md](openrouter_client.md) | Small helper: give it a model + text, get the reply (+ cost) from OpenRouter |
+| `scripts/lmstudio_client.py` | [lmstudio_client.md](lmstudio_client.md) | Small helper: list & prompt **local** LM Studio models (e.g. on the Mac Mini) — no API cost |
+| `scripts/ollama_client.py` | [ollama_client.md](ollama_client.md) | Small helper: list & prompt **local** Ollama models (e.g. `gemma4:e2b`) — no API cost |
 | `scripts/annotate.py` | [annotate.md](annotate.md) | Run any OpenRouter model as the NER annotator over a frozen dataset → `runs/<model>/` |
 | `scripts/resolve_run.py` | [resolve_run.md](resolve_run.md) | Turn offline (agent/human) annotations into a run — finds offsets, writes `runs/<name>/` |
 | `scripts/check_offsets.py` | [check_offsets.md](check_offsets.md) | Check a run's offsets against the frozen dataset (`doc[start:end] == text`) |
