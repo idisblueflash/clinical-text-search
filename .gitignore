@@ -6,3 +6,6 @@ __pycache__/
 # Secrets — never commit (holds OPENROUTER_API_KEY)
 .env
 .env.*
+
+# Overnight runner log — local scratch, not part of the record
+claude-overnight-*.log

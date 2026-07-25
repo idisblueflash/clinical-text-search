@@ -30,6 +30,7 @@ uv run python scripts/compare.py runs/opus-agent-r1 runs/<run> --match relaxed
 | Model — annotation path | Exact F1 | Exact P | Exact R | Relaxed F1 | Relaxed P | Relaxed R |
 |---|---|---|---|---|---|---|
 | **Sonnet 5 — agent path** (`sonnet-agent-r1`) | **0.736** | 0.802 | 0.680 | **0.811** | 0.883 | 0.749 |
+| Haiku 4.5 — agent path (`haiku-agent-r1`) | 0.505 | 0.410 | 0.656 | 0.612 | 0.497 | 0.795 |
 | Qwen2.5 7B-Instruct — local (`qwen2-5-7b-instruct`) | 0.190 | 0.125 | 0.397 | 0.350 | 0.230 | 0.729 |
 | gemma4:e2b — local, Ollama (`gemma4-e2b-r1`) | 0.163 | 0.094 | 0.583 | 0.228 | 0.132 | 0.817 |
 | Qwen3 1.7B — local (`qwen-qwen3-1-7b`) | 0.075 | 0.041 | 0.431 | 0.131 | 0.072 | 0.751 |
@@ -39,6 +40,14 @@ uv run python scripts/compare.py runs/opus-agent-r1 runs/<run> --match relaxed
 - **Sonnet (agent path) is the only strong candidate** — 0.736 exact / 0.811
   relaxed. Its precision (0.80) shows it is not just marking a lot of spans and
   hoping; the spans it marks are mostly right.
+- **Haiku, same agent path, is much weaker — 0.505 exact / 0.612 relaxed.** So
+  within the *same* family and the *same* path, the model size still matters a
+  lot: Haiku sits far below Sonnet, roughly halfway between Sonnet and the local
+  models. It is not an over-annotator like the locals — it marks *fewer* spans
+  than Opus (4014 vs 6216) — yet its exact precision is only 0.41, so the spans
+  it does mark often miss Opus's boundary or label. Negation nearly collapses
+  (0.07 exact): Haiku attaches negation very differently. Read: Haiku is a cheap
+  draft-only tier, not a reference-quality candidate.
 - **Local models over-annotate.** They find a lot (relaxed recall 0.73–0.82) but
   mark far more spans than Opus did, so exact precision is only 0.04–0.13. High
   recall, low precision.

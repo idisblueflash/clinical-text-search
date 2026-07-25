@@ -50,6 +50,34 @@ few spans).
 0.16 ([`COMPARISON.md`](COMPARISON.md)). It is **stably wrong, not noisy** — the
 same systematic disagreement every run.
 
+## Sonnet 5 — agent path, 3 runs (cold-start batches)
+
+Runs `sonnet-agent-r1`, `r2`, `r3`. Each round is a fresh set of cold-start
+Sonnet agents (~10 docs each, run in parallel) reading the full `guideline.md` +
+`SCHEMA.md`. Agent output is not repeatable, so each round is its own run — this
+is the same self-consistency question, just without a temperature knob to set.
+
+| Match | Mean F1 | Min | Max | Stdev |
+|---|---|---|---|---|
+| Exact | 0.770 | 0.756 | 0.778 | 0.012 |
+| Relaxed | 0.841 | 0.832 | 0.849 | 0.009 |
+
+Pairwise exact F1: r1–r2 = 0.775, r1–r3 = 0.756, r2–r3 = 0.778.
+Pairwise relaxed F1: r1–r2 = 0.841, r1–r3 = 0.832, r2–r3 = 0.849.
+
+Per-type (exact, mean over the 3 pairs): **Condition 0.82** and
+**Drug_or_device 0.82** are the steadiest; **Result 0.66** and **Intervention
+0.69** are the shakiest entities. Among modifiers (mean 0.60), **Sub_location
+0.44** is the least stable, then Negation 0.56.
+
+**Read:** Sonnet-via-agent is quite self-consistent (0.770 exact / 0.841
+relaxed) and very steady across rounds (stdev ~0.01). Its ceiling sits right at
+its 0.736 exact agreement with the Opus silver ([`COMPARISON.md`](COMPARISON.md)),
+so the gap to Opus is **not** run-to-run noise — it is stable, systematic
+disagreement (same weak types every round: Result and Intervention boundaries,
+Sub_location attachment). More Sonnet runs will not close it; a clearer guideline
+on those cases would.
+
 ## Models with only one run (no self-consistency yet)
 
 Self-consistency needs the same model run ≥2 times. These have a single run, so
@@ -57,7 +85,6 @@ there is no number to report:
 
 | Model | Runs so far | Status |
 |---|---|---|
-| Sonnet 5 — agent path | `sonnet-agent-r1` (+ `r2` partial) | **Pending** — `r2` batch agents hit the session limit mid-run; finish it to get Sonnet's ceiling next to its 0.736 vs-silver. |
 | Qwen2.5 7B-Instruct | `qwen2-5-7b-instruct` | single run |
 | Qwen3 1.7B | `qwen-qwen3-1-7b` | single run |
 | Opus (silver) | `opus-agent-r1` | single run — this is the reference itself |

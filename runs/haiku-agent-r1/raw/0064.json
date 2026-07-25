@@ -1,0 +1,24 @@
+{
+  "doc_id": "0064",
+  "entities": [
+    {"text": "Pyelonephritis", "label": "Condition"},
+    {"text": "uterine cancer", "label": "Condition"},
+    {"text": "ileal conduit urinary diversion", "label": "Intervention"},
+    {"text": "Hypertension", "label": "Condition"},
+    {"text": "Renal insufficiency", "label": "Condition"},
+    {"text": "Anemia", "label": "Condition"},
+    {"text": "Mild renal insufficiency", "label": "Condition"},
+    {"text": "ileal conduit", "label": "Locus"},
+    {"text": "Foley", "label": "Drug_or_device"},
+    {"text": "mucous plug", "label": "Condition"},
+    {"text": "IV antibiotics", "label": "Drug_or_device"},
+    {"text": "Klebsiella", "label": "Result"},
+    {"text": "Bactrim", "label": "Drug_or_device"},
+    {"text": "right knee pain", "label": "Condition"},
+    {"text": "right knee", "label": "Locus"},
+    {"text": "no sign of", "label": "Negation", "modifies": "effusion"},
+    {"text": "effusion", "label": "Condition"},
+    {"text": "patellar tendon", "label": "Locus"},
+    {"text": "ibuprofen", "label": "Drug_or_device"}
+  ]
+}

@@ -1,0 +1,20 @@
+{"doc_id": "0024", "entities": [
+  {"text": "Obstructive sleep apnea syndrome", "label": "Condition"},
+  {"text": "obstructive apneas and hypopneas", "label": "Condition"},
+  {"text": "supine position", "label": "Locus"},
+  {"text": "Periodic limb movement in sleep disorder", "label": "Condition"},
+  {"text": "periodic limb movements in sleep", "label": "Condition"},
+  {"text": "sleep fragmentation", "label": "Condition"},
+  {"text": "obstructive sleep apnea", "label": "Condition"},
+  {"text": "myocardial infarction", "label": "Condition"},
+  {"text": "stroke", "label": "Condition"},
+  {"text": "sudden death", "label": "Condition"},
+  {"text": "excessive daytime sleepiness", "label": "Condition"},
+  {"text": "nasal CPAP", "label": "Intervention"},
+  {"text": "polysomnogram", "label": "Investigation"},
+  {"text": "nasal airway obstruction", "label": "Condition"},
+  {"text": "nasal congestion", "label": "Condition"},
+  {"text": "obesity", "label": "Condition"},
+  {"text": "alcohol", "label": "Drug_or_device"},
+  {"text": "sedative medications", "label": "Drug_or_device"}
+]}

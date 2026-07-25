@@ -1,0 +1,13 @@
+{"doc_id": "0023", "entities": [
+  {"text": "gastric bypass surgery", "label": "Intervention"},
+  {"text": "morbid obesity", "label": "Condition"},
+  {"text": "pulmonary embolism", "label": "Condition"},
+  {"text": "anastomotic leak", "label": "Condition"},
+  {"text": "reoperation", "label": "Intervention"},
+  {"text": "prolonged hospitalization", "label": "Condition"},
+  {"text": "stricture", "label": "Condition"},
+  {"text": "small bowel obstruction", "label": "Condition"},
+  {"text": "bleeding", "label": "Condition"},
+  {"text": "infection", "label": "Condition"},
+  {"text": "Medifast diet", "label": "Drug_or_device"}
+]}

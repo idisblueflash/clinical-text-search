@@ -1,0 +1,11 @@
+{"doc_id": "0025", "entities": [
+  {"text": "gestational sac", "label": "Locus"},
+  {"text": "endometrial cavity", "label": "Locus"},
+  {"text": "fetal pole", "label": "Locus"},
+  {"text": "fetal heart motion", "label": "Investigation"},
+  {"text": "no fetal heart motion", "label": "Negation", "modifies": "fetal heart motion"},
+  {"text": "fluid", "label": "Condition"},
+  {"text": "right", "label": "Laterality", "modifies": "adnexal cyst"},
+  {"text": "adnexal cyst", "label": "Condition"},
+  {"text": "fetal demise", "label": "Condition"}
+]}

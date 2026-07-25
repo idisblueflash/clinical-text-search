@@ -1,0 +1,14 @@
+{"doc_id": "0027", "entities": [
+  {"text": "right", "label": "Laterality", "modifies": "common carotid artery"},
+  {"text": "plaque", "label": "Condition"},
+  {"text": "common carotid artery", "label": "Locus"},
+  {"text": "bulb", "label": "Locus"},
+  {"text": "internal carotid artery", "label": "Locus"},
+  {"text": "external carotid artery", "label": "Locus"},
+  {"text": "stenosis", "label": "Condition"},
+  {"text": "peak systolic velocity", "label": "Investigation"},
+  {"text": "left", "label": "Laterality", "modifies": "common carotid artery"},
+  {"text": "vertebrals", "label": "Locus"},
+  {"text": "Antegrade flow", "label": "Result"},
+  {"text": "bilaterally", "label": "Laterality"}
+]}
